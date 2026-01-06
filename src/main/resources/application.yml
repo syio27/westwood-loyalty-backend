@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: westwood-backend
+  
+  profiles:
+    active: dev
+  
+  # Email Configuration (SMTP)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: noreplywestwood@gmail.com
+    password: oebwrasytigojqbm
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:2GsAZVNOcd0lYajbxzwiP5dxk9sDAcr/GGCEzsqvlA0=}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+# Application Configuration
+app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:3000}
+  mail:
+    from-name: ${MAIL_FROM_NAME:Westwood Team}
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.hibernate: INFO
+    org.springframework.security: DEBUG
+
