@@ -1,4 +1,4 @@
-# Westwood Backend
+# Westwood Loyalty Platform Backend
 
 Spring Boot application with PostgreSQL and H2 database support.
 
@@ -127,4 +127,3 @@ mvn clean package
 ```bash
 java -jar target/westwood-backend-1.0.0.jar --spring.profiles.active=prod
 ```
-
