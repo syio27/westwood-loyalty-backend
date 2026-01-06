@@ -1,6 +1,7 @@
 package com.westwood.service;
 
 import com.westwood.common.dto.ClientDto;
+import com.westwood.common.dto.ClientUpdateNotesDto;
 import com.westwood.common.dto.ClientWithBonusDto;
 import com.westwood.common.dto.CreateClientRequest;
 
@@ -17,14 +18,16 @@ public interface ClientService {
 
     List<ClientDto> searchClients(String searchTerm);
 
-        List<ClientDto> getClientsByTag(String tag);
+    List<ClientDto> getClientsByTag(String tag);
 
-        ClientDto updateClient(UUID id, CreateClientRequest request);
+    ClientDto updateClient(UUID id, CreateClientRequest request);
 
-        void deleteClient(UUID id);
+    void deleteClient(UUID id);
 
-        ClientWithBonusDto getClientByPhoneWithBonus(String phone);
+    ClientWithBonusDto getClientByPhoneWithBonus(String phone);
 
-        List<String> getAllDistinctTags();
+    List<String> getAllDistinctTags();
+
+    ClientUpdateNotesDto updateClientNotes(ClientUpdateNotesDto request);
 }
 

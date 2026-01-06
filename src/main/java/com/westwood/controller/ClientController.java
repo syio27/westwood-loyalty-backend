@@ -2,6 +2,7 @@ package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.ClientDto;
+import com.westwood.common.dto.ClientUpdateNotesDto;
 import com.westwood.common.dto.ClientWithBonusDto;
 import com.westwood.common.dto.CreateClientRequest;
 import com.westwood.service.ClientService;
@@ -36,6 +37,13 @@ public class ClientController {
     public ResponseEntity<ClientDto> getClientById(@PathVariable UUID id) {
         ClientDto client = clientService.getClientById(id);
         return ResponseEntity.ok(client);
+    }
+
+    @PutMapping("/notes")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ClientUpdateNotesDto> updateNotes(@Valid @RequestBody ClientUpdateNotesDto request){
+            ClientUpdateNotesDto client = clientService.updateClientNotes(request);
+            return ResponseEntity.ok(client);
     }
 
     @GetMapping

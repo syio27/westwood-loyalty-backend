@@ -1,9 +1,6 @@
 package com.westwood.service.impl;
 
-import com.westwood.common.dto.BonusBalanceDto;
-import com.westwood.common.dto.ClientDto;
-import com.westwood.common.dto.ClientWithBonusDto;
-import com.westwood.common.dto.CreateClientRequest;
+import com.westwood.common.dto.*;
 import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.Client;
@@ -41,6 +38,14 @@ public class ClientServiceImpl implements ClientService {
         this.clientMapper = clientMapper;
         this.bonusService = bonusService;
         this.eventBonusService = eventBonusService;
+    }
+
+    @Override
+    public ClientUpdateNotesDto updateClientNotes(ClientUpdateNotesDto request) {
+        clientRepository.findByUuid(request.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + request.getId() + "' not found"));
+        clientRepository.updateClientNotes(request.getId(), request.getNotes());
+        return request;
     }
 
     @Override
