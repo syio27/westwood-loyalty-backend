@@ -6,6 +6,5 @@ import java.util.UUID;
 
 @Data
 public class ClientUpdateNotesDto {
-    private UUID id;
     private String notes;
 }

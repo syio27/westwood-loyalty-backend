@@ -1,10 +1,13 @@
 package com.westwood.util.mapper;
 
 import com.westwood.common.dto.ClientDto;
+import com.westwood.common.dto.ClientTagsResponseDto;
 import com.westwood.domain.Client;
 import com.westwood.domain.Tag;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -51,6 +54,12 @@ public class ClientMapper {
         client.setClientType(dto.getClientType());
 
         return client;
+    }
+
+    public Set<String> tagToStringDto(Set<Tag> tags) {
+        return tags.stream()
+                .map(Tag::getName)
+                .collect(Collectors.toSet());
     }
 }
 

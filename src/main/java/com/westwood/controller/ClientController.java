@@ -1,10 +1,7 @@
 package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
-import com.westwood.common.dto.ClientDto;
-import com.westwood.common.dto.ClientUpdateNotesDto;
-import com.westwood.common.dto.ClientWithBonusDto;
-import com.westwood.common.dto.CreateClientRequest;
+import com.westwood.common.dto.*;
 import com.westwood.service.ClientService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -13,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -26,7 +24,7 @@ public class ClientController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<ClientDto> createClient(@Valid @RequestBody CreateClientRequest request) {
         ClientDto createdClient = clientService.createClient(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdClient);
@@ -39,10 +37,10 @@ public class ClientController {
         return ResponseEntity.ok(client);
     }
 
-    @PutMapping("/notes")
+    @PutMapping("/{id}/notes")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<ClientUpdateNotesDto> updateNotes(@Valid @RequestBody ClientUpdateNotesDto request){
-            ClientUpdateNotesDto client = clientService.updateClientNotes(request);
+    public ResponseEntity<ClientUpdateNotesDto> updateNotes(@PathVariable UUID id , @Valid @RequestBody ClientUpdateNotesDto request){
+            ClientUpdateNotesDto client = clientService.updateClientNotes(id, request);
             return ResponseEntity.ok(client);
     }
 
@@ -63,14 +61,14 @@ public class ClientController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<ClientDto> updateClient(@PathVariable UUID id, @Valid @RequestBody CreateClientRequest request) {
         ClientDto updatedClient = clientService.updateClient(id, request);
         return ResponseEntity.ok(updatedClient);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SUDO')")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<Void> deleteClient(@PathVariable UUID id) {
         clientService.deleteClient(id);
         return ResponseEntity.noContent().build();
@@ -81,6 +79,13 @@ public class ClientController {
     public ResponseEntity<ClientWithBonusDto> getClientByPhone(@PathVariable String phone) {
         ClientWithBonusDto client = clientService.getClientByPhoneWithBonus(phone);
         return ResponseEntity.ok(client);
+    }
+
+    @PutMapping("/{id}/tags")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<Set<String>> saveOrUpdateClientTags(@PathVariable UUID id, @Valid @RequestBody ClientTagsRequestDto request) {
+        Set<String> tags = clientService.saveOrUpdateClientTags(id, request);
+        return ResponseEntity.ok(tags);
     }
 
     @GetMapping("/tags")

@@ -40,12 +40,31 @@ public class ClientServiceImpl implements ClientService {
         this.eventBonusService = eventBonusService;
     }
 
+    private Client validateAndGetClient(UUID id, String x) {
+        return clientRepository.findByUuid(id)
+                .orElseThrow(() -> new ResourceNotFoundException(x + id + "' not found"));
+    }
+
     @Override
-    public ClientUpdateNotesDto updateClientNotes(ClientUpdateNotesDto request) {
-        clientRepository.findByUuid(request.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + request.getId() + "' not found"));
-        clientRepository.updateClientNotes(request.getId(), request.getNotes());
+    public ClientUpdateNotesDto updateClientNotes(UUID id, ClientUpdateNotesDto request) {
+        validateAndGetClient(id, "Client with id '");
+        clientRepository.updateClientNotes(id, request.getNotes());
         return request;
+    }
+
+    @Override
+    public Set<String> saveOrUpdateClientTags(UUID id, ClientTagsRequestDto request) {
+        Client client = validateAndGetClient(id, "Client with id '");
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            Set<Tag> tags = request.getTags().stream()
+                    .map(this::findOrCreateTag)
+                    .collect(Collectors.toSet());
+            client.setTags(tags);
+        } else {
+            client.setTags(new HashSet<>());
+        }
+        Client updatedClient = clientRepository.save(client);
+        return clientMapper.tagToStringDto(updatedClient.getTags());
     }
 
     @Override
@@ -74,8 +93,7 @@ public class ClientServiceImpl implements ClientService {
         // Handle referral
         if (request.getReferrerId() != null) {
             // Validate referrer exists
-            clientRepository.findByUuid(request.getReferrerId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Referrer with id '" + request.getReferrerId() + "' not found"));
+            validateAndGetClient(request.getReferrerId(), "Referrer with id '");
             client.setReferrerId(request.getReferrerId());
         }
 

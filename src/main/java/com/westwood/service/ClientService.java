@@ -1,11 +1,9 @@
 package com.westwood.service;
 
-import com.westwood.common.dto.ClientDto;
-import com.westwood.common.dto.ClientUpdateNotesDto;
-import com.westwood.common.dto.ClientWithBonusDto;
-import com.westwood.common.dto.CreateClientRequest;
+import com.westwood.common.dto.*;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface ClientService {
@@ -28,6 +26,8 @@ public interface ClientService {
 
     List<String> getAllDistinctTags();
 
-    ClientUpdateNotesDto updateClientNotes(ClientUpdateNotesDto request);
+    ClientUpdateNotesDto updateClientNotes(UUID id, ClientUpdateNotesDto request);
+
+    Set<String> saveOrUpdateClientTags(UUID id, ClientTagsRequestDto request);
 }
 
