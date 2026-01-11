@@ -46,8 +46,10 @@ public class EventStore extends BaseEntity {
 
     public enum EventType {
         PAYMENT_CREATED,
+        PAYMENT_REFUNDED,
         BONUS_GRANTED,
-        BONUS_USED
+        BONUS_USED,
+        BONUS_REVOKED
     }
 }
 

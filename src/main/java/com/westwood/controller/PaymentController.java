@@ -3,6 +3,7 @@ package com.westwood.controller;
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.CreatePaymentRequest;
 import com.westwood.common.dto.PaymentTransactionDto;
+import com.westwood.common.dto.RefundPaymentRequest;
 import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.PaymentService;
 import jakarta.validation.Valid;
@@ -37,10 +38,10 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{txId}")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<PaymentTransactionDto> getPaymentById(@PathVariable Long id) {
-        PaymentTransactionDto payment = paymentService.getPaymentById(id);
+    public ResponseEntity<PaymentTransactionDto> getPaymentByTxId(@PathVariable String txId) {
+        PaymentTransactionDto payment = paymentService.getPaymentByTxId(txId);
         return ResponseEntity.ok(payment);
     }
 
@@ -59,6 +60,16 @@ public class PaymentController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         BigDecimal total = paymentService.calculateTotalByClientAndTimeRange(clientId, from, to);
         return ResponseEntity.ok(total);
+    }
+
+    @PostMapping("/{txId}/refund")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PaymentTransactionDto> refundPayment(
+            @PathVariable String txId,
+            @Valid @RequestBody RefundPaymentRequest request) {
+        Long enteredByUserId = getCurrentUserId();
+        PaymentTransactionDto refundedPayment = paymentService.refundPayment(txId, request, enteredByUserId);
+        return ResponseEntity.ok(refundedPayment);
     }
 
     private Long getCurrentUserId() {

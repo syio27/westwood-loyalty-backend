@@ -5,7 +5,9 @@ import com.westwood.domain.EventStore;
 import com.westwood.event.BaseEvent;
 import com.westwood.event.BonusGrantedEvent;
 import com.westwood.event.BonusUsedEvent;
+import com.westwood.event.BonusRevokedEvent;
 import com.westwood.event.PaymentCreatedEvent;
+import com.westwood.event.PaymentRefundedEvent;
 import com.westwood.repository.EventStoreRepository;
 import com.westwood.service.EventSourcingService;
 import org.springframework.stereotype.Service;
@@ -46,7 +48,12 @@ public class EventSourcingServiceImpl implements EventSourcingService {
 
     @Override
     public void appendPaymentCreatedEvent(PaymentCreatedEvent event) {
-        appendEvent(event, "PaymentTransaction", event.getPaymentId().toString());
+        appendEvent(event, "PaymentTransaction", event.getPaymentTxId());
+    }
+
+    @Override
+    public void appendPaymentRefundedEvent(PaymentRefundedEvent event) {
+        appendEvent(event, "PaymentTransaction", event.getRefundPaymentTxId());
     }
 
     @Override
@@ -56,6 +63,11 @@ public class EventSourcingServiceImpl implements EventSourcingService {
 
     @Override
     public void appendBonusUsedEvent(BonusUsedEvent event) {
+        appendEvent(event, "Client", event.getClientId().toString());
+    }
+
+    @Override
+    public void appendBonusRevokedEvent(BonusRevokedEvent event) {
         appendEvent(event, "Client", event.getClientId().toString());
     }
 
@@ -74,10 +86,14 @@ public class EventSourcingServiceImpl implements EventSourcingService {
     private EventStore.EventType mapEventType(BaseEvent event) {
         if (event instanceof PaymentCreatedEvent) {
             return EventStore.EventType.PAYMENT_CREATED;
+        } else if (event instanceof PaymentRefundedEvent) {
+            return EventStore.EventType.PAYMENT_REFUNDED;
         } else if (event instanceof BonusGrantedEvent) {
             return EventStore.EventType.BONUS_GRANTED;
         } else if (event instanceof BonusUsedEvent) {
             return EventStore.EventType.BONUS_USED;
+        } else if (event instanceof BonusRevokedEvent) {
+            return EventStore.EventType.BONUS_REVOKED;
         }
         throw new IllegalArgumentException("Unknown event type: " + event.getClass().getName());
     }

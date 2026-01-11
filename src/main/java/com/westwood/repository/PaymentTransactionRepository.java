@@ -26,5 +26,20 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
                                                              @Param("toDate") LocalDateTime toDate);
 
     List<PaymentTransaction> findByEnteredByIdOrderByCreatedAtDesc(Long userId);
+
+    @Query("SELECT p FROM PaymentTransaction p WHERE p.refundedPayment.id = :paymentId")
+    List<PaymentTransaction> findRefundsByPaymentId(@Param("paymentId") Long paymentId);
+
+    @Query("SELECT MAX(p.transactionNumber) FROM PaymentTransaction p WHERE p.transactionYear = :year")
+    Long findMaxTransactionNumberByYear(@Param("year") Integer year);
+
+    @Query("SELECT COUNT(p) > 0 FROM PaymentTransaction p WHERE p.txId = :txId")
+    boolean existsByTxId(@Param("txId") String txId);
+
+    @Query("SELECT p FROM PaymentTransaction p WHERE p.txId = :txId")
+    java.util.Optional<PaymentTransaction> findByTxId(@Param("txId") String txId);
+
+    @Query("SELECT p FROM PaymentTransaction p WHERE p.refundedPayment.txId = :txId")
+    List<PaymentTransaction> findRefundsByPaymentTxId(@Param("txId") String txId);
 }
 

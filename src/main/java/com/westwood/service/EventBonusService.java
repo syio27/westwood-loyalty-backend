@@ -9,10 +9,10 @@ public interface EventBonusService {
 
     void checkAndGrantBirthdayBonus(UUID clientId);
 
-    void checkAndGrantMilestoneBonus(UUID clientId, Long paymentId, BigDecimal paymentAmount);
+    void checkAndGrantMilestoneBonus(UUID clientId, String paymentTxId, BigDecimal paymentAmount);
 
     void grantReferralBonus(UUID referrerId, UUID refereeId);
 
-    void processPaymentBonuses(Long paymentId, UUID clientId, BigDecimal paymentAmount);
+    void processPaymentBonuses(String paymentTxId, UUID clientId, BigDecimal paymentAmount);
 }
 

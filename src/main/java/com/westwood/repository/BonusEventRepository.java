@@ -1,6 +1,7 @@
 package com.westwood.repository;
 
 import com.westwood.domain.BonusEvent;
+import com.westwood.domain.BonusGranted;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,5 +21,9 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
 
     @Query("SELECT be FROM BonusEvent be LEFT JOIN FETCH be.client WHERE be.client.id = :clientId ORDER BY be.createdAt ASC")
     List<BonusEvent> findByClientIdOrderByCreatedAtAsc(@Param("clientId") Long clientId);
+    
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.paymentTransaction.txId = :txId")
+    List<BonusGranted> findBonusGrantedByPaymentTxId(@Param("txId") String txId);
 }
 

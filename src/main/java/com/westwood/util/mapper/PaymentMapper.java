@@ -13,7 +13,7 @@ public class PaymentMapper {
         }
 
         PaymentTransactionDto dto = new PaymentTransactionDto();
-        dto.setId(payment.getId()); // Keep internal ID for database operations
+        dto.setTxId(payment.getTxId());
         dto.setClientId(payment.getClient() != null ? payment.getClient().getUuid() : null); // Use UUID for external
         dto.setClientName(payment.getClient() != null ? 
             payment.getClient().getName() + " " + payment.getClient().getSurname() : null);
@@ -22,6 +22,7 @@ public class PaymentMapper {
         dto.setAmount(payment.getAmount());
         dto.setNotes(payment.getNotes());
         dto.setStatus(payment.getStatus());
+        dto.setRefundedPaymentTxId(payment.getRefundedPayment() != null ? payment.getRefundedPayment().getTxId() : null);
         dto.setCreatedAt(payment.getCreatedAt());
         dto.setUpdatedAt(payment.getUpdatedAt());
 

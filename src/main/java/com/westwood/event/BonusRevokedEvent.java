@@ -11,14 +11,14 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-public class BonusUsedEvent extends BaseEvent {
+public class BonusRevokedEvent extends BaseEvent {
 
-    private Long bonusUsedId;
+    private Long bonusRevokedId;
     private String paymentTxId; // Transaction identifier
     private Long paymentId; // Internal ID (kept for backward compatibility)
     private Long clientId;
-    private BigDecimal bonusAmountUsed;
-    private BigDecimal originalPaymentAmount;
-    private BigDecimal finalPaymentAmount;
+    private Long originalBonusGrantedId;
+    private BigDecimal bonusAmount;
+    private String revokeReason;
 }
 

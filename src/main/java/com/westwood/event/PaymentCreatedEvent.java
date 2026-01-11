@@ -13,7 +13,8 @@ import java.math.BigDecimal;
 @EqualsAndHashCode(callSuper = false)
 public class PaymentCreatedEvent extends BaseEvent {
 
-    private Long paymentId;
+    private String paymentTxId; // Transaction identifier (PTX-YY-XXXXX)
+    private Long paymentId; // Internal ID (kept for backward compatibility)
     private Long clientId;
     private Long enteredByUserId;
     private BigDecimal amount;

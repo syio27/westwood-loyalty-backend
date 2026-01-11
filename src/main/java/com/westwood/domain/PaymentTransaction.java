@@ -2,7 +2,6 @@ package com.westwood.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -25,9 +24,8 @@ public class PaymentTransaction extends BaseEntity {
     private User enteredBy;
 
     @NotNull
-    @Positive
     @Column(name = "amount", nullable = false, precision = 19, scale = 2)
-    private BigDecimal amount;
+    private BigDecimal amount; // Can be negative for refunds
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
@@ -36,10 +34,24 @@ public class PaymentTransaction extends BaseEntity {
     @Column(name = "status", nullable = false)
     private PaymentStatus status = PaymentStatus.COMPLETED;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "refunded_payment_id")
+    private PaymentTransaction refundedPayment; // Reference to the original payment if this is a refund
+
+    @Column(name = "transaction_year", nullable = false)
+    private Integer transactionYear; // Year for transaction numbering (e.g., 24 for 2024)
+
+    @Column(name = "transaction_number", nullable = false)
+    private Long transactionNumber; // Legacy field, kept for compatibility (can be 0 or random)
+
+    @Column(name = "tx_id", unique = true, nullable = false, length = 12)
+    private String txId; // Format: PTX-YY-XXXXX (e.g., PTX-24-ABCDE) where XXXXX is random uppercase letters
+
     public enum PaymentStatus {
         PENDING,
         COMPLETED,
-        CANCELLED
+        CANCELLED,
+        REFUND
     }
 }
 

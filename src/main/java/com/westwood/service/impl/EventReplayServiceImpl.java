@@ -7,6 +7,7 @@ import com.westwood.domain.BonusEvent;
 import com.westwood.domain.Client;
 import com.westwood.domain.EventStore;
 import com.westwood.event.PaymentCreatedEvent;
+import com.westwood.event.PaymentRefundedEvent;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.service.EventReplayService;
@@ -60,13 +61,17 @@ public class EventReplayServiceImpl implements EventReplayService {
 
         BigDecimal total = BigDecimal.ZERO;
         for (EventStore event : events) {
-            if (event.getEventType() == EventStore.EventType.PAYMENT_CREATED) {
-                try {
+            try {
+                if (event.getEventType() == EventStore.EventType.PAYMENT_CREATED) {
                     PaymentCreatedEvent paymentEvent = objectMapper.readValue(event.getEventData(), PaymentCreatedEvent.class);
                     total = total.add(paymentEvent.getAmount());
-                } catch (Exception e) {
-                    // Log error and continue
+                } else if (event.getEventType() == EventStore.EventType.PAYMENT_REFUNDED) {
+                    PaymentRefundedEvent refundEvent = objectMapper.readValue(event.getEventData(), PaymentRefundedEvent.class);
+                    // refundAmount is already negative, so we add it (which subtracts)
+                    total = total.add(refundEvent.getRefundAmount());
                 }
+            } catch (Exception e) {
+                // Log error and continue
             }
         }
 

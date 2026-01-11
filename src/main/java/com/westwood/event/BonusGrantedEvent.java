@@ -14,7 +14,8 @@ import java.math.BigDecimal;
 public class BonusGrantedEvent extends BaseEvent {
 
     private Long bonusGrantedId;
-    private Long paymentId;
+    private String paymentTxId; // Transaction identifier
+    private Long paymentId; // Internal ID (kept for backward compatibility)
     private Long clientId;
     private BigDecimal bonusAmount;
     private BigDecimal bonusPercentage;

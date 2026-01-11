@@ -10,7 +10,7 @@ import java.util.UUID;
 @Data
 public class PaymentTransactionDto {
 
-    private Long id; // Internal ID for database operations
+    private String txId; // Transaction identifier: PTX-YY-XXXXX (e.g., PTX-24-ABCDE)
     private UUID clientId; // External UUID for frontend
     private String clientName;
     private UUID enteredByUserId; // External UUID for frontend
@@ -18,6 +18,7 @@ public class PaymentTransactionDto {
     private BigDecimal amount;
     private String notes;
     private PaymentTransaction.PaymentStatus status;
+    private String refundedPaymentTxId; // Transaction identifier of the original payment if this is a refund
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -129,7 +129,7 @@ public class EventBonusServiceImpl implements EventBonusService {
     }
 
     @Override
-    public void checkAndGrantMilestoneBonus(UUID clientId, Long paymentId, BigDecimal paymentAmount) {
+    public void checkAndGrantMilestoneBonus(UUID clientId, String paymentTxId, BigDecimal paymentAmount) {
         try {
             BonusType milestoneBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.PAYMENT_MILESTONE)
                     .orElse(null);
@@ -166,8 +166,8 @@ public class EventBonusServiceImpl implements EventBonusService {
                 return;
             }
 
-            PaymentTransaction payment = paymentRepository.findById(paymentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Payment with id '" + paymentId + "' not found"));
+            PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + paymentTxId + "' not found"));
 
             BigDecimal bonusAmount = milestoneBonus.getBonusAmount();
             if (bonusAmount == null && milestoneBonus.getBonusPercentage() != null) {
@@ -215,7 +215,7 @@ public class EventBonusServiceImpl implements EventBonusService {
     }
 
     @Override
-    public void processPaymentBonuses(Long paymentId, UUID clientId, BigDecimal paymentAmount) {
+    public void processPaymentBonuses(String paymentTxId, UUID clientId, BigDecimal paymentAmount) {
         // Check and grant BASIC_CASHBACK
         try {
             BonusType cashbackBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.BASIC_CASHBACK)
@@ -227,8 +227,8 @@ public class EventBonusServiceImpl implements EventBonusService {
 
                 // Only grant cashback for INDIVIDUAL clients
                 if (client.getClientType() == com.westwood.domain.ClientType.INDIVIDUAL) {
-                    PaymentTransaction payment = paymentRepository.findById(paymentId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Payment with id '" + paymentId + "' not found"));
+                    PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId)
+                            .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + paymentTxId + "' not found"));
 
                     BigDecimal bonusAmount = paymentAmount.multiply(cashbackBonus.getBonusPercentage())
                             .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
@@ -243,7 +243,7 @@ public class EventBonusServiceImpl implements EventBonusService {
         }
 
         // Check and grant PAYMENT_MILESTONE
-        checkAndGrantMilestoneBonus(clientId, paymentId, paymentAmount);
+        checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
     }
 
     private void grantBonus(Client client, BonusType bonusType, PaymentTransaction payment, 

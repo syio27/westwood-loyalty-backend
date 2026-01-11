@@ -21,7 +21,7 @@ public class BonusEventDto {
     private LocalDateTime createdAt;
     
     // For GRANTED events
-    private Long paymentTransactionId; // The payment that granted the bonus (internal ID)
+    private String paymentTxId; // Transaction identifier of the payment that granted the bonus
     private BigDecimal bonusPercentage;
     private BigDecimal paymentAmount; // Original payment amount
     

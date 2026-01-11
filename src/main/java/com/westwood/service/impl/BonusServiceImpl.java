@@ -22,6 +22,7 @@ import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.UserRepository;
 import com.westwood.service.BonusService;
 import com.westwood.service.EventSourcingService;
+import com.westwood.service.TransactionIdentifierService;
 import com.westwood.util.mapper.BonusMapper;
 import com.westwood.util.mapper.PaymentMapper;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class BonusServiceImpl implements BonusService {
     private final EventSourcingService eventSourcingService;
     private final BonusMapper bonusMapper;
     private final PaymentMapper paymentMapper;
+    private final TransactionIdentifierService transactionIdentifierService;
 
     public BonusServiceImpl(BonusEventRepository bonusEventRepository,
                            BonusTypeRepository bonusTypeRepository,
@@ -51,7 +53,8 @@ public class BonusServiceImpl implements BonusService {
                            UserRepository userRepository,
                            EventSourcingService eventSourcingService,
                            BonusMapper bonusMapper,
-                           PaymentMapper paymentMapper) {
+                           PaymentMapper paymentMapper,
+                           TransactionIdentifierService transactionIdentifierService) {
         this.bonusEventRepository = bonusEventRepository;
         this.bonusTypeRepository = bonusTypeRepository;
         this.paymentRepository = paymentRepository;
@@ -60,6 +63,7 @@ public class BonusServiceImpl implements BonusService {
         this.eventSourcingService = eventSourcingService;
         this.bonusMapper = bonusMapper;
         this.paymentMapper = paymentMapper;
+        this.transactionIdentifierService = transactionIdentifierService;
     }
 
     /**
@@ -94,6 +98,7 @@ public class BonusServiceImpl implements BonusService {
             // Create and append BonusGranted event
             BonusGrantedEvent event = new BonusGrantedEvent(
                     savedBonus.getId(),
+                    payment.getTxId(),
                     paymentId,
                     clientId,
                     bonusAmount,
@@ -124,6 +129,10 @@ public class BonusServiceImpl implements BonusService {
 
         BigDecimal finalPaymentAmount = request.getPaymentAmount().subtract(request.getBonusAmountToUse());
 
+        // Generate unique transaction identifier
+        String transactionIdentifier = transactionIdentifierService.generateNextTransactionIdentifier();
+        int yearSuffix = transactionIdentifierService.parseTransactionIdentifier(transactionIdentifier);
+
         // Create payment with reduced amount
         PaymentTransaction payment = new PaymentTransaction();
         payment.setClient(client);
@@ -131,6 +140,9 @@ public class BonusServiceImpl implements BonusService {
         payment.setAmount(finalPaymentAmount);
         payment.setNotes(request.getNotes());
         payment.setStatus(PaymentTransaction.PaymentStatus.COMPLETED);
+        payment.setTransactionYear(yearSuffix);
+        payment.setTransactionNumber(0L); // Not used anymore, set to 0
+        payment.setTxId(transactionIdentifier);
 
         PaymentTransaction savedPayment = paymentRepository.save(payment);
 
@@ -149,6 +161,7 @@ public class BonusServiceImpl implements BonusService {
         // Create and append BonusUsed event
         BonusUsedEvent event = new BonusUsedEvent(
                 savedBonusUsed.getId(),
+                transactionIdentifier,
                 savedPayment.getId(),
                 client.getId(), // Use internal Long ID for events
                 request.getBonusAmountToUse(),
@@ -159,6 +172,7 @@ public class BonusServiceImpl implements BonusService {
 
         // Also create PaymentCreated event
         com.westwood.event.PaymentCreatedEvent paymentEvent = new com.westwood.event.PaymentCreatedEvent(
+                transactionIdentifier,
                 savedPayment.getId(),
                 client.getId(),
                 enteredByUserId,
