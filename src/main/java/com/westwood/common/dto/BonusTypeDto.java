@@ -1,6 +1,7 @@
 package com.westwood.common.dto;
 
 import com.westwood.domain.BonusTypeEnum;
+import com.westwood.domain.IconType;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ public class BonusTypeDto {
     private Integer milestoneThreshold;
     private Integer expirationDays; // Number of days until bonus expires (null = never expires)
     private String description;
+    private IconType iconType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

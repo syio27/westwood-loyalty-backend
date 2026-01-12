@@ -1,5 +1,6 @@
 package com.westwood.common.dto;
 
+import com.westwood.domain.IconType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -25,6 +26,8 @@ public class UpdateBonusTypeRequest {
     private Integer expirationDays; // Number of days until bonus expires (null = never expires)
 
     private String description;
+
+    private IconType iconType;
 
     private Boolean enabled;
 }

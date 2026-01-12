@@ -45,5 +45,9 @@ public class BonusType extends BaseEntity {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "icon_type", length = 20)
+    private IconType iconType;
 }
 

@@ -35,6 +35,7 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         bonusType.setMilestoneThreshold(request.getMilestoneThreshold());
         bonusType.setExpirationDays(request.getExpirationDays());
         bonusType.setDescription(request.getDescription());
+        bonusType.setIconType(request.getIconType());
 
         BonusType saved = bonusTypeRepository.save(bonusType);
         return toDto(saved);
@@ -67,6 +68,7 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         bonusType.setMilestoneThreshold(request.getMilestoneThreshold());
         bonusType.setExpirationDays(request.getExpirationDays());
         bonusType.setDescription(request.getDescription());
+        bonusType.setIconType(request.getIconType());
         if (request.getEnabled() != null) {
             bonusType.setEnabled(request.getEnabled());
         }
@@ -118,6 +120,7 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         dto.setMilestoneThreshold(bonusType.getMilestoneThreshold());
         dto.setExpirationDays(bonusType.getExpirationDays());
         dto.setDescription(bonusType.getDescription());
+        dto.setIconType(bonusType.getIconType());
         dto.setCreatedAt(bonusType.getCreatedAt());
         dto.setUpdatedAt(bonusType.getUpdatedAt());
         return dto;
