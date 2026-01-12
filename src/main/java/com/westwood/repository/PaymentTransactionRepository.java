@@ -13,9 +13,12 @@ import java.math.BigDecimal;
 @Repository
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
 
-    List<PaymentTransaction> findByClientIdOrderByCreatedAtDesc(Long clientId);
+    // Exclude refund transactions (status REFUND) from client-facing queries
+    // Refund transactions are internal and used for event sourcing only
+    @Query("SELECT p FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status != 'REFUND' ORDER BY p.createdAt DESC")
+    List<PaymentTransaction> findByClientIdOrderByCreatedAtDesc(@Param("clientId") Long clientId);
 
-    @Query("SELECT p FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.createdAt BETWEEN :fromDate AND :toDate ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status != 'REFUND' AND p.createdAt BETWEEN :fromDate AND :toDate ORDER BY p.createdAt DESC")
     List<PaymentTransaction> findByClientIdAndTimeRange(@Param("clientId") Long clientId,
                                                          @Param("fromDate") LocalDateTime fromDate,
                                                          @Param("toDate") LocalDateTime toDate);

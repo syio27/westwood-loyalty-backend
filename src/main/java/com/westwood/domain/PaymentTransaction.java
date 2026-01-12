@@ -51,7 +51,8 @@ public class PaymentTransaction extends BaseEntity {
         PENDING,
         COMPLETED,
         CANCELLED,
-        REFUND
+        REFUND,      // Status for refund transactions (internal)
+        REFUNDED     // Status for original payment transactions that have been refunded
     }
 }
 

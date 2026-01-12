@@ -150,7 +150,11 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentTransaction originalPayment = paymentRepository.findByTxId(txId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + txId + "' not found"));
 
-        // Check if payment is already refunded (check if a refund transaction already exists)
+        // Check if payment is already refunded (check status or if a refund transaction already exists)
+        if (originalPayment.getStatus() == PaymentTransaction.PaymentStatus.REFUNDED) {
+            throw new IllegalStateException("Payment with txId '" + txId + "' is already refunded");
+        }
+        
         List<PaymentTransaction> existingRefunds = paymentRepository.findRefundsByPaymentTxId(txId);
         if (!existingRefunds.isEmpty()) {
             throw new IllegalStateException("Payment with txId '" + txId + "' is already refunded");
@@ -175,13 +179,17 @@ public class PaymentServiceImpl implements PaymentService {
         refundTransaction.setAmount(originalPayment.getAmount().negate()); // Negative amount for refund
         String refundNotes = request.getNotes() != null ? request.getNotes() : "Payment refunded";
         refundTransaction.setNotes("Refund for payment " + originalPayment.getTxId() + ": " + refundNotes);
-        refundTransaction.setStatus(PaymentTransaction.PaymentStatus.COMPLETED);
+        refundTransaction.setStatus(PaymentTransaction.PaymentStatus.REFUND);
         refundTransaction.setRefundedPayment(originalPayment); // Link to original payment
         refundTransaction.setTransactionYear(yearSuffix);
         refundTransaction.setTransactionNumber(0L); // Not used anymore, set to 0
         refundTransaction.setTxId(refundIdentifier);
 
         PaymentTransaction savedRefund = paymentRepository.save(refundTransaction);
+
+        // Mark the original payment as REFUNDED
+        originalPayment.setStatus(PaymentTransaction.PaymentStatus.REFUNDED);
+        paymentRepository.save(originalPayment);
 
         // Create and append PaymentRefunded event
         PaymentRefundedEvent refundEvent = new PaymentRefundedEvent(
