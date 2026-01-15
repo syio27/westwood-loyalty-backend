@@ -23,7 +23,10 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     List<BonusEvent> findByClientIdOrderByCreatedAtAsc(@Param("clientId") Long clientId);
     
 
-    @Query("SELECT bg FROM BonusGranted bg WHERE bg.paymentTransaction.txId = :txId")
+    @Query("SELECT bg FROM BonusGranted bg JOIN FETCH bg.paymentTransaction pt WHERE pt.txId = :txId")
     List<BonusGranted> findBonusGrantedByPaymentTxId(@Param("txId") String txId);
+
+    @Query("SELECT bg FROM BonusGranted bg JOIN FETCH bg.paymentTransaction pt WHERE pt.id = :paymentId")
+    List<BonusGranted> findBonusGrantedByPaymentId(@Param("paymentId") Long paymentId);
 }
 

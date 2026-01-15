@@ -2,6 +2,7 @@ package com.westwood.domain;
 
 import com.westwood.common.validation.PhoneNumber;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -45,6 +46,10 @@ public class Client extends BaseEntity {
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
+
+    @Email
+    @Column(name = "email", length = 255)
+    private String email;
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;

@@ -530,6 +530,74 @@
 					"response": []
 				},
 				{
+					"name": "Update Client Notes",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Updated client notes\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}/notes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}",
+								"notes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client Tags",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tags\": [\"vip\", \"premium\", \"loyal\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/{{clientId}}/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"{{clientId}}",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get All Tags",
 					"request": {
 						"method": "GET",
@@ -592,7 +660,7 @@
 					"response": []
 				},
 				{
-					"name": "Get Payment by ID",
+					"name": "Get Payment by Transaction ID",
 					"request": {
 						"method": "GET",
 						"header": [
@@ -602,7 +670,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/payments/{{paymentId}}",
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
@@ -610,7 +678,7 @@
 								"api",
 								"v1",
 								"payments",
-								"{{paymentId}}"
+								"{{paymentTxId}}"
 							]
 						}
 					},
@@ -674,6 +742,40 @@
 									"key": "to",
 									"value": "2024-12-31T23:59:59"
 								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refund Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"notes\": \"Refund reason: customer request\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}/refund",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"{{paymentTxId}}",
+								"refund"
 							]
 						}
 					},
@@ -1094,6 +1196,272 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Message Templates",
+			"item": [
+				{
+					"name": "Create Message Template",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Basic Cashback Notification\",\n  \"type\": \"BASIC_CASHBACK_BONUS_GRANT\",\n  \"content\": \"Hello {{clientName}}, and thank you for purchasing today. You have been granted a bonus of {{clientGrantedBonus}} tenge.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Message Templates",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Templates by Type",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates?type=BASIC_CASHBACK_BONUS_GRANT",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "BASIC_CASHBACK_BONUS_GRANT"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Template by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Message Template",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Basic Cashback Notification Updated\",\n  \"type\": \"BASIC_CASHBACK_BONUS_GRANT\",\n  \"content\": \"Hello {{clientName}}, thank you for your purchase! You have been granted a bonus of {{clientGrantedBonus}} tenge. Your current bonus balance is {{clientBonus}} tenge.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Message Template",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/{{templateId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"{{templateId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Populated Message Template",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/populated?type=BASIC_CASHBACK_BONUS_GRANT&clientId={{clientId}}&paymentTxId={{paymentTxId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"populated"
+							],
+							"query": [
+								{
+									"key": "type",
+									"value": "BASIC_CASHBACK_BONUS_GRANT",
+									"description": "Template type"
+								},
+								{
+									"key": "clientId",
+									"value": "{{clientId}}",
+									"description": "Client UUID"
+								},
+								{
+									"key": "paymentTxId",
+									"value": "{{paymentTxId}}",
+									"description": "Payment transaction ID (optional for BASIC_CASHBACK_BONUS_GRANT type)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Template Variables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/variables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"variables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Template Types",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/message-templates/types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"message-templates",
+								"types"
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"variable": [
@@ -1134,6 +1502,16 @@
 		},
 		{
 			"key": "activationToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "templateId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "paymentTxId",
 			"value": "",
 			"type": "string"
 		}

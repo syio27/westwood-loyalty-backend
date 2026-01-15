@@ -1,0 +1,5 @@
+package com.westwood.domain;
+
+public enum MessageTemplateType {
+    BASIC_CASHBACK_BONUS_GRANT
+}
