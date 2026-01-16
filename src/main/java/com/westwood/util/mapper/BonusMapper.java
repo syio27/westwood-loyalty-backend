@@ -85,6 +85,7 @@ public class BonusMapper {
                 granted.getPaymentTransaction().getTxId() : null);
             dto.setBonusPercentage(granted.getBonusPercentage());
             dto.setPaymentAmount(granted.getPaymentAmount());
+            dto.setGrantReason(granted.getGrantReason());
             // Note: expiresAt can be added to BonusEventDto if needed for frontend display
         } else if (event instanceof BonusUsed) {
             BonusUsed used = (BonusUsed) event;
@@ -98,6 +99,7 @@ public class BonusMapper {
             dto.setEventType("REVOKED");
             dto.setPaymentTxId(revoked.getPaymentTransaction() != null ? 
                 revoked.getPaymentTransaction().getTxId() : null);
+            dto.setRevokeReason(revoked.getRevokeReason());
             // Note: originalBonusGrantedId could be added to BonusEventDto if needed
         }
 

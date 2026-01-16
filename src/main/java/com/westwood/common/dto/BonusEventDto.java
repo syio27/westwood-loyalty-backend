@@ -24,9 +24,13 @@ public class BonusEventDto {
     private String paymentTxId; // Transaction identifier of the payment that granted the bonus
     private BigDecimal bonusPercentage;
     private BigDecimal paymentAmount; // Original payment amount
+    private String grantReason; // Reason why bonus was granted (e.g., "CASHBACK", "BIRTHDAY", "FIRST_PAYMENT", "10TH_PAYMENT", "REFERRAL")
     
     // For USED events
     private BigDecimal originalPaymentAmount; // Payment amount before bonus
     private BigDecimal finalPaymentAmount; // Payment amount after bonus
+    
+    // For REVOKED events
+    private String revokeReason; // Reason why bonus was revoked (e.g., "PAYMENT_REFUND")
 }
 
