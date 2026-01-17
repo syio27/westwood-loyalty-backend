@@ -32,7 +32,8 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getUsername();
+        // Return email as username for Spring Security compatibility
+        return user.getEmail();
     }
 
     @Override

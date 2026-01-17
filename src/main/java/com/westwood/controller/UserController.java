@@ -37,10 +37,10 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    @GetMapping("/username/{username}")
+    @GetMapping("/email/{email}")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<UserDto> getUserByUsername(@PathVariable String username) {
-        UserDto user = userService.getUserByUsername(username);
+    public ResponseEntity<UserDto> getUserByEmail(@PathVariable String email) {
+        UserDto user = userService.getUserByEmail(email);
         return ResponseEntity.ok(user);
     }
 

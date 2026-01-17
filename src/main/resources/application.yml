@@ -27,7 +27,8 @@ server:
 
 jwt:
   secret: ${JWT_SECRET:2GsAZVNOcd0lYajbxzwiP5dxk9sDAcr/GGCEzsqvlA0=}
-  expiration: ${JWT_EXPIRATION:86400000}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}  # 15 minutes
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}  # 7 days
 
 # Application Configuration
 app:
@@ -35,6 +36,12 @@ app:
     url: ${FRONTEND_URL:http://localhost:3000}
   mail:
     from-name: ${MAIL_FROM_NAME:Westwood Team}
+  cookie:
+    domain: ${COOKIE_DOMAIN:}
+    secure: ${COOKIE_SECURE:false}  # false for localhost, true for production
+    same-site: ${COOKIE_SAME_SITE:Lax}  # Lax for localhost cross-origin, None for production with Secure=true
+  refresh-token:
+    cleanup-cron: ${REFRESH_TOKEN_CLEANUP_CRON:0 0 2 * * ?}  # Daily at 2 AM
 
 logging:
   level:

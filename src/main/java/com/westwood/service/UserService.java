@@ -12,7 +12,7 @@ public interface UserService {
 
     UserDto getUserById(UUID id);
 
-    UserDto getUserByUsername(String username);
+    UserDto getUserByEmail(String email);
 
     List<UserDto> getAllUsers();
 

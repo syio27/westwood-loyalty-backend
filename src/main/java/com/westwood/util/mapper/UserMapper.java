@@ -14,7 +14,7 @@ public class UserMapper {
 
         UserDto dto = new UserDto();
         dto.setId(user.getUuid()); // Use UUID for external identification
-        dto.setUsername(user.getUsername());
+        dto.setUsername(user.getEmail()); // Use email as username for backward compatibility
         dto.setEmail(user.getEmail());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
@@ -33,7 +33,7 @@ public class UserMapper {
 
         User user = new User();
         // UUID is auto-generated on persist, don't set it from DTO
-        user.setUsername(dto.getUsername());
+        // Username is deprecated - not setting it from DTO
         user.setEmail(dto.getEmail());
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());

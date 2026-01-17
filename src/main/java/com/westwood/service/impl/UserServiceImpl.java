@@ -29,16 +29,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto createUser(CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new ResourceAlreadyExistsException("User with username '" + request.getUsername() + "' already exists");
-        }
-
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new ResourceAlreadyExistsException("User with email '" + request.getEmail() + "' already exists");
         }
 
         User user = new User();
-        user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -58,9 +53,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserDto getUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User with username '" + username + "' not found"));
+    public UserDto getUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User with email '" + email + "' not found"));
         return userMapper.toDto(user);
     }
 
@@ -77,15 +72,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByUuid(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User with id '" + id + "' not found"));
 
-        if (!user.getUsername().equals(request.getUsername()) && userRepository.existsByUsername(request.getUsername())) {
-            throw new ResourceAlreadyExistsException("User with username '" + request.getUsername() + "' already exists");
-        }
-
         if (!user.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
             throw new ResourceAlreadyExistsException("User with email '" + request.getEmail() + "' already exists");
         }
 
-        user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());

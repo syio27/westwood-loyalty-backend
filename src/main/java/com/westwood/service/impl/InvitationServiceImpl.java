@@ -59,9 +59,6 @@ public class InvitationServiceImpl implements InvitationService {
             throw new ResourceAlreadyExistsException("User with email '" + request.getEmail() + "' already exists");
         }
 
-        // Generate unique username if not provided (using email prefix)
-        String username = generateUniqueUsername(request.getEmail());
-
         // Generate secure activation token
         String activationToken = generateActivationToken();
         LocalDateTime tokenExpiry = LocalDateTime.now().plusDays(ACTIVATION_TOKEN_VALIDITY_DAYS);
@@ -69,7 +66,6 @@ public class InvitationServiceImpl implements InvitationService {
         // Create user in PENDING_ACTIVATION state
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setUsername(username);
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAccountStatus(AccountStatus.PENDING_ACTIVATION);
@@ -82,7 +78,7 @@ public class InvitationServiceImpl implements InvitationService {
         user.setPassword(passwordEncoder.encode(generateTemporaryPassword()));
 
         User savedUser = userRepository.save(user);
-        logger.info("User invited: email={}, username={}", request.getEmail(), username);
+        logger.info("User invited: email={}", request.getEmail());
 
         // Send invitation email
         String activationUrl = String.format("%s/activate?token=%s", frontendUrl, activationToken);
@@ -115,14 +111,6 @@ public class InvitationServiceImpl implements InvitationService {
             throw new InvalidActivationTokenException("Account is not in pending activation state");
         }
 
-        // Check if username is already taken (if different from current)
-        if (!user.getUsername().equals(request.getUsername())) {
-            if (userRepository.existsByUsername(request.getUsername())) {
-                throw new ResourceAlreadyExistsException("Username '" + request.getUsername() + "' is already taken");
-            }
-            user.setUsername(request.getUsername());
-        }
-
         // Update user with new password and activate account
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setAccountStatus(AccountStatus.ACTIVE);
@@ -131,7 +119,7 @@ public class InvitationServiceImpl implements InvitationService {
         user.setActivationTokenExpiry(null);
 
         User activatedUser = userRepository.save(user);
-        logger.info("User activated: email={}, username={}", activatedUser.getEmail(), activatedUser.getUsername());
+        logger.info("User activated: email={}", activatedUser.getEmail());
 
         // Send activation confirmation email
         emailService.sendActivationConfirmationEmail(activatedUser.getEmail(), activatedUser.getFirstName());
@@ -143,21 +131,6 @@ public class InvitationServiceImpl implements InvitationService {
         byte[] tokenBytes = new byte[TOKEN_LENGTH];
         secureRandom.nextBytes(tokenBytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-    }
-
-    private String generateUniqueUsername(String email) {
-        String baseUsername = email.split("@")[0].toLowerCase()
-                .replaceAll("[^a-z0-9]", "");
-        
-        String username = baseUsername;
-        int counter = 1;
-        
-        while (userRepository.existsByUsername(username)) {
-            username = baseUsername + counter;
-            counter++;
-        }
-        
-        return username;
     }
 
     private String generateTemporaryPassword() {

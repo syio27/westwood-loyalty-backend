@@ -69,7 +69,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
                 record.getClient().getUuid(),
                 record.getClient().getName() + " " + record.getClient().getSurname(),
                 record.getInitiatedBy().getId(),
-                record.getInitiatedBy().getUsername(),
+                record.getInitiatedBy().getEmail(),
                 record.getMessageContent(),
                 record.getChannel(),
                 record.getStatus(),

@@ -18,7 +18,7 @@ public class PaymentMapper {
         dto.setClientName(payment.getClient() != null ? 
             payment.getClient().getName() + " " + payment.getClient().getSurname() : null);
         dto.setEnteredByUserId(payment.getEnteredBy() != null ? payment.getEnteredBy().getUuid() : null); // Use UUID for external
-        dto.setEnteredByUsername(payment.getEnteredBy() != null ? payment.getEnteredBy().getUsername() : null);
+        dto.setEnteredByUsername(payment.getEnteredBy() != null ? payment.getEnteredBy().getEmail() : null);
         dto.setAmount(payment.getAmount());
         dto.setNotes(payment.getNotes());
         dto.setStatus(payment.getStatus());

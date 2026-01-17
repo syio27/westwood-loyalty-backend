@@ -1,9 +1,11 @@
 package com.westwood.controller;
 
-import com.westwood.common.dto.JwtResponse;
+import com.westwood.common.dto.AuthResponse;
 import com.westwood.common.dto.LoginRequest;
 import com.westwood.common.dto.RegisterRequest;
 import com.westwood.service.AuthenticationService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,15 +21,41 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<JwtResponse> login(@Valid @RequestBody LoginRequest request) {
-        JwtResponse response = authenticationService.login(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authenticationService.login(request, response);
+        return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<JwtResponse> register(@Valid @RequestBody RegisterRequest request) {
-        JwtResponse response = authenticationService.register(request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authenticationService.register(request, response);
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authenticationService.refreshToken(request, response);
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        authenticationService.logout(request, response);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponse> getCurrentUser() {
+        AuthResponse authResponse = authenticationService.getCurrentUser();
+        return ResponseEntity.ok(authResponse);
     }
 }
 

@@ -28,9 +28,8 @@ public class User extends BaseEntity {
     @Column(name = "uuid", unique = true, nullable = false, updatable = false)
     private UUID uuid;
 
-    @NotBlank
-    @Size(min = 2, max = 50)
-    @Column(name = "username", unique = true, nullable = false)
+    // Username is deprecated - use email instead
+    @Column(name = "username", unique = true, nullable = true)
     private String username;
 
     @NotBlank
