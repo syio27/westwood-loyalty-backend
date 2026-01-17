@@ -1,8 +1,10 @@
 package com.westwood.controller;
 
 import com.westwood.common.dto.AuthResponse;
+import com.westwood.common.dto.ForgotPasswordRequest;
 import com.westwood.common.dto.LoginRequest;
 import com.westwood.common.dto.RegisterRequest;
+import com.westwood.common.dto.ResetPasswordRequest;
 import com.westwood.service.AuthenticationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,6 +57,20 @@ public class AuthenticationController {
     @GetMapping("/me")
     public ResponseEntity<AuthResponse> getCurrentUser() {
         AuthResponse authResponse = authenticationService.getCurrentUser();
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authenticationService.forgotPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authenticationService.resetPassword(request, response);
         return ResponseEntity.ok(authResponse);
     }
 }

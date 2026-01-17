@@ -73,6 +73,12 @@ public class User extends BaseEntity {
     @Column(name = "activation_token_expiry")
     private LocalDateTime activationTokenExpiry;
 
+    @Column(name = "password_reset_token", unique = true)
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expiry")
+    private LocalDateTime passwordResetTokenExpiry;
+
     public void addRole(Role role) {
         this.roles.add(role);
     }

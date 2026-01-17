@@ -81,6 +81,33 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Override
+    public void sendPasswordResetEmail(String to, String firstName, String resetToken, String resetUrl) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail, fromName);
+            helper.setTo(to);
+            helper.setSubject("Reset Your Westwood Password");
+
+            String resetLink = resetUrl != null ? resetUrl :
+                    String.format("%s/auth/reset-password?token=%s", frontendUrl, resetToken);
+
+            String htmlContent = buildPasswordResetEmailContent(firstName, resetLink, resetToken);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            logger.info("Password reset email sent successfully to: {}", to);
+        } catch (MessagingException e) {
+            logger.error("Failed to send password reset email to: {}", to, e);
+            throw new RuntimeException("Failed to send password reset email", e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending password reset email to: {}", to, e);
+            throw new RuntimeException("Failed to send password reset email", e);
+        }
+    }
+
     private String buildInvitationEmailContent(String firstName, String activationLink, String activationToken) {
         return String.format("""
             <!DOCTYPE html>
@@ -154,6 +181,48 @@ public class EmailServiceImpl implements EmailService {
             </body>
             </html>
             """, firstName);
+    }
+
+    private String buildPasswordResetEmailContent(String firstName, String resetLink, String resetToken) {
+        return String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #2196F3; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .button { display: inline-block; padding: 12px 24px; background-color: #2196F3;
+                               color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                    .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+                    .token-box { background-color: #e3f2fd; padding: 15px; border-radius: 5px;
+                                 margin: 20px 0; font-family: monospace; word-break: break-all; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Password Reset Request</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hello %s,</p>
+                        <p>We received a request to reset your password for your Westwood account. Click the button below to reset your password:</p>
+                        <div style="text-align: center;">
+                            <a href="%s" class="button">Reset Password</a>
+                        </div>
+                        <p>Or copy and paste this link into your browser:</p>
+                        <div class="token-box">%s</div>
+                        <p><strong>Important:</strong> This password reset link will expire in 24 hours. If you didn't request a password reset, please ignore this email and your password will remain unchanged.</p>
+                    </div>
+                    <div class="footer">
+                        <p>© 2025 Westwood. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, firstName, resetLink, resetLink);
     }
 }
 

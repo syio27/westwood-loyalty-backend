@@ -1,8 +1,11 @@
 package com.westwood.service.impl;
 
 import com.westwood.common.dto.AuthResponse;
+import com.westwood.common.dto.ForgotPasswordRequest;
 import com.westwood.common.dto.LoginRequest;
 import com.westwood.common.dto.RegisterRequest;
+import com.westwood.common.dto.ResetPasswordRequest;
+import com.westwood.common.exception.InvalidActivationTokenException;
 import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.common.exception.TokenRefreshException;
@@ -13,20 +16,26 @@ import com.westwood.domain.User;
 import com.westwood.repository.UserRepository;
 import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.AuthenticationService;
+import com.westwood.service.EmailService;
 import com.westwood.service.RefreshTokenService;
 import com.westwood.util.CookieUtil;
 import com.westwood.util.jwt.JwtTokenProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -35,12 +44,21 @@ import java.util.stream.Collectors;
 @Transactional
 public class AuthenticationServiceImpl implements AuthenticationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
+    private static final int TOKEN_LENGTH = 32;
+    private static final int PASSWORD_RESET_TOKEN_VALIDITY_HOURS = 24;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final CookieUtil cookieUtil;
+    private final EmailService emailService;
+    private final SecureRandom secureRandom;
+
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     public AuthenticationServiceImpl(
             UserRepository userRepository,
@@ -48,13 +66,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             AuthenticationManager authenticationManager,
             JwtTokenProvider jwtTokenProvider,
             RefreshTokenService refreshTokenService,
-            CookieUtil cookieUtil) {
+            CookieUtil cookieUtil,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
         this.cookieUtil = cookieUtil;
+        this.emailService = emailService;
+        this.secureRandom = new SecureRandom();
     }
 
     @Override
@@ -216,6 +237,69 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 user.getLastName(),
                 roles
         );
+    }
+
+    @Override
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User with email '" + request.getEmail() + "' not found"));
+
+        // Generate secure password reset token
+        String resetToken = generatePasswordResetToken();
+        LocalDateTime tokenExpiry = LocalDateTime.now().plusHours(PASSWORD_RESET_TOKEN_VALIDITY_HOURS);
+
+        // Store token and expiry
+        user.setPasswordResetToken(resetToken);
+        user.setPasswordResetTokenExpiry(tokenExpiry);
+        userRepository.save(user);
+
+        logger.info("Password reset token generated for user: {}", request.getEmail());
+
+        // Send password reset email
+        String resetUrl = String.format("%s/auth/reset-password?token=%s", frontendUrl, resetToken);
+        emailService.sendPasswordResetEmail(
+                user.getEmail(),
+                user.getFirstName(),
+                resetToken,
+                resetUrl
+        );
+    }
+
+    @Override
+    public AuthResponse resetPassword(ResetPasswordRequest request, HttpServletResponse response) {
+        // Find user by password reset token
+        User user = userRepository.findByPasswordResetToken(request.getToken())
+                .orElseThrow(() -> new InvalidActivationTokenException("Invalid or expired password reset token"));
+
+        // Validate token expiry
+        if (user.getPasswordResetTokenExpiry() == null ||
+                user.getPasswordResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            user.setPasswordResetToken(null);
+            user.setPasswordResetTokenExpiry(null);
+            userRepository.save(user);
+            throw new InvalidActivationTokenException("Password reset token has expired. Please request a new password reset.");
+        }
+
+        // Update password and clear reset token
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiry(null);
+        userRepository.save(user);
+
+        logger.info("Password reset successful for user: {}", user.getEmail());
+
+        // Automatically log in the user after password reset
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setEmail(user.getEmail());
+        loginRequest.setPassword(request.getPassword());
+
+        return login(loginRequest, response);
+    }
+
+    private String generatePasswordResetToken() {
+        byte[] tokenBytes = new byte[TOKEN_LENGTH];
+        secureRandom.nextBytes(tokenBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
     }
 }
 
