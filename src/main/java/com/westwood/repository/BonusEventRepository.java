@@ -2,6 +2,7 @@ package com.westwood.repository;
 
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
+import com.westwood.domain.BonusRevoked;
 import com.westwood.domain.BonusUsed;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -43,21 +44,26 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     List<BonusUsed> findBonusUsedByPaymentId(@Param("paymentId") Long paymentId);
 
     // Analytics queries
-    @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
+    @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     Long countBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
-    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     BigDecimal sumBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
     // Overall totals (all time)
-    @Query("SELECT COUNT(bg) FROM BonusGranted bg")
+    @Query("SELECT COUNT(bg) FROM BonusGranted bg " +
+           "WHERE NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     Long countAllBonusesGranted();
 
-    @Query("SELECT SUM(bg.bonusAmount) FROM BonusGranted bg")
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg " +
+           "WHERE NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     BigDecimal sumAllBonusesGrantedAmount();
 
     // Client analytics queries
-    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.client.id = :clientId")
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.client.id = :clientId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     BigDecimal sumBonusesGrantedByClientId(@Param("clientId") Long clientId);
 
     @Query("SELECT COALESCE(SUM(bu.bonusAmount), 0) FROM BonusUsed bu WHERE bu.client.id = :clientId")
@@ -65,12 +71,14 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
 
     // Daily bonus amounts grouped by day
     // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
+    // Excludes revoked bonuses (GRANTED bonuses that have a corresponding REVOKED event)
     // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
     @Query(value = "SELECT " +
             "CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER), " +
-            "COALESCE(SUM(CASE WHEN be.event_type = 'GRANTED' THEN be.bonus_amount ELSE 0 END), 0), " +
+            "COALESCE(SUM(CASE WHEN be.event_type = 'GRANTED' AND br.id IS NULL THEN be.bonus_amount ELSE 0 END), 0), " +
             "COALESCE(SUM(CASE WHEN be.event_type = 'USED' THEN be.bonus_amount ELSE 0 END), 0) " +
             "FROM bonus_events be " +
+            "LEFT JOIN bonus_revoked br ON br.original_bonus_granted_id = be.id " +
             "WHERE be.created_at >= :startDate AND be.created_at < :endDate " +
             "AND be.event_type IN ('GRANTED', 'USED') " +
             "GROUP BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER) " +

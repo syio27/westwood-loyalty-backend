@@ -113,6 +113,34 @@ public class BonusTypeServiceImpl implements BonusTypeService {
 
     @Override
     @Transactional(readOnly = true)
+    public BonusTypeDto getActiveBonusByFlow(String flow) {
+        BonusTypeEnum bonusTypeEnum = mapFlowToBonusType(flow);
+        return getActiveBonusByType(bonusTypeEnum);
+    }
+
+    private BonusTypeEnum mapFlowToBonusType(String flow) {
+        if (flow == null || flow.trim().isEmpty()) {
+            throw new IllegalArgumentException("Flow name cannot be null or empty");
+        }
+        
+        String normalizedFlow = flow.trim().toLowerCase();
+        switch (normalizedFlow) {
+            case "new_payment":
+                return BonusTypeEnum.BASIC_CASHBACK;
+            // Add more flow mappings here as needed
+            // case "welcome":
+            //     return BonusTypeEnum.WELCOME;
+            // case "birthday":
+            //     return BonusTypeEnum.BIRTHDAY;
+            // case "referral":
+            //     return BonusTypeEnum.REFERRAL;
+            default:
+                throw new IllegalArgumentException("Unknown flow: " + flow);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<BonusTypeInfoDto> getPreconfiguredBonusTypes() {
         return Arrays.stream(BonusTypeEnum.values())
                 .map(type -> new BonusTypeInfoDto(type.name(), getRussianDisplayName(type)))

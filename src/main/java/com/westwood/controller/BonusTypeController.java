@@ -83,5 +83,12 @@ public class BonusTypeController {
         List<BonusTypeInfoDto> preconfiguredTypes = bonusTypeService.getPreconfiguredBonusTypes();
         return ResponseEntity.ok(preconfiguredTypes);
     }
+
+    @GetMapping("/flow/{flow}")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<BonusTypeDto> getActiveBonusByFlow(@PathVariable String flow) {
+        BonusTypeDto bonusType = bonusTypeService.getActiveBonusByFlow(flow);
+        return ResponseEntity.ok(bonusType);
+    }
 }
 

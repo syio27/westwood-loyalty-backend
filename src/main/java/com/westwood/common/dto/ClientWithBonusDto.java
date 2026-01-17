@@ -1,5 +1,6 @@
 package com.westwood.common.dto;
 
+import com.westwood.domain.ClientType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,7 @@ public class ClientWithBonusDto {
     private String surname;
     private String comment;
     private Set<String> tags;
-    private BigDecimal totalBonusesEarned;
+    private BigDecimal currentBonusBalance;
+    private ClientType clientType;
 }
 

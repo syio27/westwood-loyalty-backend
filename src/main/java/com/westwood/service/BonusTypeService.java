@@ -26,6 +26,8 @@ public interface BonusTypeService {
 
     BonusTypeDto getActiveBonusByType(BonusTypeEnum type);
 
+    BonusTypeDto getActiveBonusByFlow(String flow);
+
     List<BonusTypeInfoDto> getPreconfiguredBonusTypes();
 }
 

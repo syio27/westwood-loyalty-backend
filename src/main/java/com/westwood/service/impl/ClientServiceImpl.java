@@ -215,7 +215,8 @@ public class ClientServiceImpl implements ClientService {
                 client.getSurname(),
                 client.getNotes(),
                 tagNames,
-                bonusBalance.getTotalAccumulated()
+                bonusBalance.getCurrentBalance(),
+                client.getClientType()
         );
     }
 
