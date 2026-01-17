@@ -114,5 +114,12 @@ public class AnalyticsController {
         MonthlyRevenueChartDto chart = analyticsService.getMonthlyRevenueChart(year, month);
         return ResponseEntity.ok(chart);
     }
+
+    @GetMapping("/totals/overall")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<OverallTotalsDto> getOverallTotals() {
+        OverallTotalsDto totals = analyticsService.getOverallTotals();
+        return ResponseEntity.ok(totals);
+    }
 }
 

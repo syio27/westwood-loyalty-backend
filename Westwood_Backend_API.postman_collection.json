@@ -2934,6 +2934,52 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Get Overall Totals",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/totals/overall",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"totals",
+								"overall"
+							]
+						},
+						"description": "Returns overall totals for all time:\n- totalPayments: Total number of completed payments (all time)\n- totalRevenue: Total revenue from all completed payments (all time)\n- totalBonusesGranted: Total number of bonuses granted (all time)\n\nThis endpoint is useful for dashboard metrics showing lifetime totals."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/analytics/totals/overall",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "analytics", "totals", "overall"]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"totalPayments\": 30,\n  \"totalRevenue\": 1095600.00,\n  \"totalBonusesGranted\": 10867\n}"
+						}
+					]
 				}
 			]
 		},

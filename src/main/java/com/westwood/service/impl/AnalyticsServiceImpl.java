@@ -411,6 +411,21 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return new MonthlyRevenueChartDto(year, month, dailyData);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public OverallTotalsDto getOverallTotals() {
+        Long totalPayments = paymentRepository.countAllCompletedTransactions();
+        if (totalPayments == null) totalPayments = 0L;
+
+        BigDecimal totalRevenue = paymentRepository.calculateTotalRevenueAllTime();
+        if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
+
+        Long totalBonusesGranted = bonusEventRepository.countAllBonusesGranted();
+        if (totalBonusesGranted == null) totalBonusesGranted = 0L;
+
+        return new OverallTotalsDto(totalPayments, totalRevenue, totalBonusesGranted);
+    }
+
     private BigDecimal calculatePercentageChange(BigDecimal current, BigDecimal previous) {
         if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
             return current.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.valueOf(100) : BigDecimal.ZERO;

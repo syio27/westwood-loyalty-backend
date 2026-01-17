@@ -60,6 +60,13 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     @Query("SELECT AVG(p.amount) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
     BigDecimal calculateAverageAmountByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
 
+    // Overall totals (all time)
+    @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.status = 'COMPLETED'")
+    Long countAllCompletedTransactions();
+
+    @Query("SELECT SUM(p.amount) FROM PaymentTransaction p WHERE p.status = 'COMPLETED'")
+    BigDecimal calculateTotalRevenueAllTime();
+
     // Daily revenue and transaction count grouped by day
     // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
     @Query(value = "SELECT " +

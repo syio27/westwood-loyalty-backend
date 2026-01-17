@@ -40,6 +40,10 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
     Long countBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
+    // Overall totals (all time)
+    @Query("SELECT COUNT(bg) FROM BonusGranted bg")
+    Long countAllBonusesGranted();
+
     // Daily bonus counts grouped by day
     // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
     // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
