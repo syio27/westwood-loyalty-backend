@@ -1,6 +1,7 @@
 package com.westwood.service.impl;
 
 import com.westwood.common.dto.BonusTypeDto;
+import com.westwood.common.dto.BonusTypeInfoDto;
 import com.westwood.common.dto.CreateBonusTypeRequest;
 import com.westwood.common.dto.UpdateBonusTypeRequest;
 import com.westwood.common.exception.ResourceNotFoundException;
@@ -11,6 +12,7 @@ import com.westwood.service.BonusTypeService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -107,6 +109,31 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         BonusType bonusType = bonusTypeRepository.findByTypeAndEnabledTrue(type)
                 .orElseThrow(() -> new ResourceNotFoundException("Active bonus type '" + type + "' not found"));
         return toDto(bonusType);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BonusTypeInfoDto> getPreconfiguredBonusTypes() {
+        return Arrays.stream(BonusTypeEnum.values())
+                .map(type -> new BonusTypeInfoDto(type.name(), getRussianDisplayName(type)))
+                .collect(Collectors.toList());
+    }
+
+    private String getRussianDisplayName(BonusTypeEnum type) {
+        switch (type) {
+            case BASIC_CASHBACK:
+                return "Базовый кэшбэк";
+            case WELCOME:
+                return "Приветственный бонус";
+            case BIRTHDAY:
+                return "День рождения";
+            case PAYMENT_MILESTONE:
+                return "Порог платежа";
+            case REFERRAL:
+                return "Реферальный бонус";
+            default:
+                return type.name();
+        }
     }
 
     private BonusTypeDto toDto(BonusType bonusType) {

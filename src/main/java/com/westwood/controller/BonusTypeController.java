@@ -2,6 +2,7 @@ package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.BonusTypeDto;
+import com.westwood.common.dto.BonusTypeInfoDto;
 import com.westwood.common.dto.CreateBonusTypeRequest;
 import com.westwood.common.dto.UpdateBonusTypeRequest;
 import com.westwood.service.BonusTypeService;
@@ -74,6 +75,13 @@ public class BonusTypeController {
     public ResponseEntity<List<BonusTypeDto>> getActiveBonusTypes() {
         List<BonusTypeDto> activeBonusTypes = bonusTypeService.getActiveBonusTypes();
         return ResponseEntity.ok(activeBonusTypes);
+    }
+
+    @GetMapping("/preconfigured")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<List<BonusTypeInfoDto>> getPreconfiguredBonusTypes() {
+        List<BonusTypeInfoDto> preconfiguredTypes = bonusTypeService.getPreconfiguredBonusTypes();
+        return ResponseEntity.ok(preconfiguredTypes);
     }
 }
 
