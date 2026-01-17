@@ -142,7 +142,7 @@ public class EmailServiceImpl implements EmailService {
                         <p><strong>Important:</strong> This activation link will expire in 7 days. If you didn't request this invitation, please ignore this email.</p>
                     </div>
                     <div class="footer">
-                        <p>© 2025 Westwood. All rights reserved.</p>
+                        <p>© 2026 Westwood. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -175,7 +175,7 @@ public class EmailServiceImpl implements EmailService {
                         <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
                     </div>
                     <div class="footer">
-                        <p>© 2025 Westwood. All rights reserved.</p>
+                        <p>© 2026 Westwood. All rights reserved.</p>
                     </div>
                 </div>
             </body>
@@ -217,7 +217,7 @@ public class EmailServiceImpl implements EmailService {
                         <p><strong>Important:</strong> This password reset link will expire in 24 hours. If you didn't request a password reset, please ignore this email and your password will remain unchanged.</p>
                     </div>
                     <div class="footer">
-                        <p>© 2025 Westwood. All rights reserved.</p>
+                        <p>© 2026 Westwood. All rights reserved.</p>
                     </div>
                 </div>
             </body>
