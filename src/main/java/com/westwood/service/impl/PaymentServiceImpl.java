@@ -123,12 +123,12 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PaymentTransactionDto> getPaymentsByClientId(UUID clientId) {
+    public List<PaymentSearchResultDto> getPaymentsByClientId(UUID clientId) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
         Long internalClientId = client.getId(); // Convert to internal ID
         return paymentRepository.findByClientIdOrderByCreatedAtDesc(internalClientId).stream()
-                .map(paymentMapper::toDto)
+                .map(this::toSearchResultDto)
                 .collect(Collectors.toList());
     }
 
@@ -378,7 +378,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.getAmount(),
             payment.getStatus(),
             null, // paymentMethod - пока не реализовано, можно добавить в будущем
-            enteredBy != null ? enteredBy.getUsername() : null,
+            enteredBy != null ? enteredBy.getEmail() : null,
             payment.getCreatedAt(),
             refundedPaymentTxId,
             bonusGranted,

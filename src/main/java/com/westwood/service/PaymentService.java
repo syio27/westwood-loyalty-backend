@@ -13,7 +13,7 @@ public interface PaymentService {
 
     PaymentTransactionDto getPaymentByTxId(String txId);
 
-    List<PaymentTransactionDto> getPaymentsByClientId(UUID clientId);
+    List<PaymentSearchResultDto> getPaymentsByClientId(UUID clientId);
 
     List<PaymentTransactionDto> getPaymentsByClientIdAndTimeRange(UUID clientId, LocalDateTime fromDate, LocalDateTime toDate);
 

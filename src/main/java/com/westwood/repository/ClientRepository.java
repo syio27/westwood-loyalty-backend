@@ -44,6 +44,10 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     @Query("SELECT COUNT(DISTINCT p.client.id) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
     Long countActiveClientsByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
+    // Overall totals (all time)
+    @Query("SELECT COUNT(c) FROM Client c")
+    Long countAllClients();
+
     // Search clients with pagination and filters
     @Query("SELECT DISTINCT c FROM Client c " +
             "WHERE " +

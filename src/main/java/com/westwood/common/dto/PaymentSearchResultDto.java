@@ -21,7 +21,7 @@ public class PaymentSearchResultDto {
     private BigDecimal amount; // Сумма платежа
     private PaymentTransaction.PaymentStatus status; // Статус (COMPLETED, REFUNDED, etc.)
     private String paymentMethod; // Способ оплаты (если будет добавлен в будущем)
-    private String enteredByUsername; // Пользователь, который создал платеж
+    private String initiatedBy; // Пользователь, который создал платеж (email)
     private LocalDateTime createdAt; // Дата создания
     private String refundedPaymentTxId; // ID возвращенного платежа (если это возврат)
     private BigDecimal bonusGranted; // Сумма начисленных бонусов за этот платеж

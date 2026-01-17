@@ -22,7 +22,7 @@ public interface AnalyticsService {
 
     TransactionCountAnalyticsDto getDailyTransactionCount();
 
-    ClientCountAnalyticsDto getNewClientsCount();
+    ClientCountAnalyticsDto getNewClientsCount(String period); // "DAILY" or "MONTHLY"
 
     AverageCheckAnalyticsDto getAverageCheck(String period); // "DAILY" or "MONTHLY"
 

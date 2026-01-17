@@ -71,8 +71,9 @@ public class AnalyticsController {
 
     @GetMapping("/clients/new/daily")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<ClientCountAnalyticsDto> getNewClientsCount() {
-        ClientCountAnalyticsDto count = analyticsService.getNewClientsCount();
+    public ResponseEntity<ClientCountAnalyticsDto> getNewClientsCount(
+            @RequestParam(defaultValue = "DAILY") String period) {
+        ClientCountAnalyticsDto count = analyticsService.getNewClientsCount(period);
         return ResponseEntity.ok(count);
     }
 

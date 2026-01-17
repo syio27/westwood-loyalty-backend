@@ -63,8 +63,8 @@ public class PaymentController {
 
     @GetMapping("/client/{clientId}")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<List<PaymentTransactionDto>> getPaymentsByClientId(@PathVariable UUID clientId) {
-        List<PaymentTransactionDto> payments = paymentService.getPaymentsByClientId(clientId);
+    public ResponseEntity<List<PaymentSearchResultDto>> getPaymentsByClientId(@PathVariable UUID clientId) {
+        List<PaymentSearchResultDto> payments = paymentService.getPaymentsByClientId(clientId);
         return ResponseEntity.ok(payments);
     }
 

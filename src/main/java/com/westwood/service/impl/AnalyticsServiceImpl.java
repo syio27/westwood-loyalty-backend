@@ -187,24 +187,38 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     @Transactional(readOnly = true)
-    public ClientCountAnalyticsDto getNewClientsCount() {
-        LocalDate today = LocalDate.now();
-        LocalDateTime startOfToday = LocalDateTime.of(today, LocalTime.MIN);
-        LocalDateTime endOfToday = LocalDateTime.of(today, LocalTime.MAX);
+    public ClientCountAnalyticsDto getNewClientsCount(String period) {
+        LocalDate now = LocalDate.now();
+        LocalDateTime startOfCurrentPeriod;
+        LocalDateTime endOfCurrentPeriod;
+        LocalDateTime startOfPreviousPeriod;
+        LocalDateTime endOfPreviousPeriod;
 
-        LocalDate yesterday = today.minusDays(1);
-        LocalDateTime startOfYesterday = LocalDateTime.of(yesterday, LocalTime.MIN);
-        LocalDateTime endOfYesterday = LocalDateTime.of(yesterday, LocalTime.MAX);
+        if ("MONTHLY".equalsIgnoreCase(period)) {
+            startOfCurrentPeriod = LocalDateTime.of(now.withDayOfMonth(1), LocalTime.MIN);
+            endOfCurrentPeriod = LocalDateTime.of(now, LocalTime.MAX);
 
-        Long currentCount = clientRepository.countNewClientsByDateRange(startOfToday, endOfToday);
+            LocalDate previousMonth = now.minusMonths(1);
+            startOfPreviousPeriod = LocalDateTime.of(previousMonth.withDayOfMonth(1), LocalTime.MIN);
+            endOfPreviousPeriod = LocalDateTime.of(previousMonth.withDayOfMonth(previousMonth.lengthOfMonth()), LocalTime.MAX);
+        } else { // DAILY
+            startOfCurrentPeriod = LocalDateTime.of(now, LocalTime.MIN);
+            endOfCurrentPeriod = LocalDateTime.of(now, LocalTime.MAX);
+
+            LocalDate yesterday = now.minusDays(1);
+            startOfPreviousPeriod = LocalDateTime.of(yesterday, LocalTime.MIN);
+            endOfPreviousPeriod = LocalDateTime.of(yesterday, LocalTime.MAX);
+        }
+
+        Long currentCount = clientRepository.countNewClientsByDateRange(startOfCurrentPeriod, endOfCurrentPeriod);
         if (currentCount == null) currentCount = 0L;
 
-        Long previousCount = clientRepository.countNewClientsByDateRange(startOfYesterday, endOfYesterday);
+        Long previousCount = clientRepository.countNewClientsByDateRange(startOfPreviousPeriod, endOfPreviousPeriod);
         if (previousCount == null) previousCount = 0L;
 
         Long changeAbsolute = currentCount - previousCount;
 
-        return new ClientCountAnalyticsDto(currentCount, changeAbsolute, "NEW", "DAILY");
+        return new ClientCountAnalyticsDto(currentCount, changeAbsolute, "NEW", period.toUpperCase());
     }
 
     @Override
@@ -420,10 +434,13 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         BigDecimal totalRevenue = paymentRepository.calculateTotalRevenueAllTime();
         if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
 
-        Long totalBonusesGranted = bonusEventRepository.countAllBonusesGranted();
-        if (totalBonusesGranted == null) totalBonusesGranted = 0L;
+        BigDecimal totalBonusesGranted = bonusEventRepository.sumAllBonusesGrantedAmount();
+        if (totalBonusesGranted == null) totalBonusesGranted = BigDecimal.ZERO;
 
-        return new OverallTotalsDto(totalPayments, totalRevenue, totalBonusesGranted);
+        Long totalClients = clientRepository.countAllClients();
+        if (totalClients == null) totalClients = 0L;
+
+        return new OverallTotalsDto(totalPayments, totalRevenue, totalBonusesGranted, totalClients);
     }
 
     private BigDecimal calculatePercentageChange(BigDecimal current, BigDecimal previous) {

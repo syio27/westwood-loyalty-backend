@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -43,6 +44,9 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     // Overall totals (all time)
     @Query("SELECT COUNT(bg) FROM BonusGranted bg")
     Long countAllBonusesGranted();
+
+    @Query("SELECT SUM(bg.bonusAmount) FROM BonusGranted bg")
+    BigDecimal sumAllBonusesGrantedAmount();
 
     // Daily bonus counts grouped by day
     // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
