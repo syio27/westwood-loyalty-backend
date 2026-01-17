@@ -13,6 +13,6 @@ public class DailyRevenueDataDto {
     private Integer day; // Day of month (1-31)
     private BigDecimal revenue; // Revenue for this day
     private Long transactionCount; // Number of transactions
-    private Long bonusesGranted; // Number of bonuses granted (начислено)
-    private Long bonusesUsed; // Number of bonuses used (использовано)
+    private BigDecimal bonusesGranted; // Total amount of bonuses granted (начислено) in tenge
+    private BigDecimal bonusesUsed; // Total amount of bonuses used (использовано) in tenge
 }

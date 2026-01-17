@@ -63,19 +63,19 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT COALESCE(SUM(bu.bonusAmount), 0) FROM BonusUsed bu WHERE bu.client.id = :clientId")
     BigDecimal sumBonusesUsedByClientId(@Param("clientId") Long clientId);
 
-    // Daily bonus counts grouped by day
+    // Daily bonus amounts grouped by day
     // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
     // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
     @Query(value = "SELECT " +
             "CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER), " +
-            "CAST(COUNT(CASE WHEN be.event_type = 'GRANTED' THEN 1 END) AS BIGINT), " +
-            "CAST(COUNT(CASE WHEN be.event_type = 'USED' THEN 1 END) AS BIGINT) " +
+            "COALESCE(SUM(CASE WHEN be.event_type = 'GRANTED' THEN be.bonus_amount ELSE 0 END), 0), " +
+            "COALESCE(SUM(CASE WHEN be.event_type = 'USED' THEN be.bonus_amount ELSE 0 END), 0) " +
             "FROM bonus_events be " +
             "WHERE be.created_at >= :startDate AND be.created_at < :endDate " +
             "AND be.event_type IN ('GRANTED', 'USED') " +
             "GROUP BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER) " +
             "ORDER BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER)", nativeQuery = true)
-    List<Object[]> getDailyBonusCountsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
+    List<Object[]> getDailyBonusAmountsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                @Param("endDate") java.time.LocalDateTime endDate);
 }
 

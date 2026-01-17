@@ -368,7 +368,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<Object[]> revenueData = paymentRepository.getDailyRevenueAndTransactionsByMonth(startDateTime, endDateTime);
         
         // Get bonus data grouped by day
-        List<Object[]> bonusData = bonusEventRepository.getDailyBonusCountsByMonth(startDateTime, endDateTime);
+        List<Object[]> bonusData = bonusEventRepository.getDailyBonusAmountsByMonth(startDateTime, endDateTime);
         
         // Create maps for quick lookup
         Map<Integer, DailyRevenueDataDto> dayDataMap = new HashMap<>();
@@ -379,8 +379,8 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 day,
                 BigDecimal.ZERO,
                 0L,
-                0L,
-                0L
+                BigDecimal.ZERO,
+                BigDecimal.ZERO
             ));
         }
         
@@ -405,13 +405,17 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         for (Object[] row : bonusData) {
             if (row.length >= 3 && row[0] != null) {
                 Integer day = ((Number) row[0]).intValue();
-                Long grantedCount = row[1] != null ? ((Number) row[1]).longValue() : 0L;
-                Long usedCount = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+                BigDecimal grantedAmount = row[1] != null ? 
+                    (row[1] instanceof BigDecimal ? (BigDecimal) row[1] : new BigDecimal(row[1].toString())) : 
+                    BigDecimal.ZERO;
+                BigDecimal usedAmount = row[2] != null ? 
+                    (row[2] instanceof BigDecimal ? (BigDecimal) row[2] : new BigDecimal(row[2].toString())) : 
+                    BigDecimal.ZERO;
                 
                 DailyRevenueDataDto existing = dayDataMap.get(day);
                 if (existing != null) {
-                    existing.setBonusesGranted(grantedCount);
-                    existing.setBonusesUsed(usedCount);
+                    existing.setBonusesGranted(grantedAmount);
+                    existing.setBonusesUsed(usedAmount);
                 }
             }
         }
