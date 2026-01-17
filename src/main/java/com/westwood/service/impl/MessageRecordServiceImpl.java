@@ -60,7 +60,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
         List<MessageRecord> records = messageRecordRepository.findByChannelOrderByCreatedAtDesc(channel);
         return records.stream()
                 .map(this::toDto)
-                .toList();
+                .collect(java.util.stream.Collectors.toList());
     }
 
     private MessageRecordDto toDto(MessageRecord record) {

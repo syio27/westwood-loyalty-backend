@@ -86,7 +86,7 @@ public class BonusMapper {
             dto.setBonusPercentage(granted.getBonusPercentage());
             dto.setPaymentAmount(granted.getPaymentAmount());
             dto.setGrantReason(granted.getGrantReason());
-            // Note: expiresAt can be added to BonusEventDto if needed for frontend display
+            dto.setExpiresAt(granted.getExpiresAt());
         } else if (event instanceof BonusUsed) {
             BonusUsed used = (BonusUsed) event;
             dto.setEventType("USED");

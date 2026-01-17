@@ -94,5 +94,12 @@ public class ClientController {
         List<String> tags = clientService.getAllDistinctTags();
         return ResponseEntity.ok(tags);
     }
+
+    @PostMapping("/search")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PagedClientSearchResponse> searchClients(@Valid @RequestBody ClientSearchRequest request) {
+        PagedClientSearchResponse response = clientService.searchClients(request);
+        return ResponseEntity.ok(response);
+    }
 }
 

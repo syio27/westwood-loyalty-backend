@@ -3,16 +3,9 @@ package com.westwood.controller;
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.BonusBalanceDto;
 import com.westwood.common.dto.BonusEventDto;
-import com.westwood.common.dto.PaymentTransactionDto;
-import com.westwood.common.dto.UseBonusRequest;
-import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.BonusService;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,14 +19,6 @@ public class BonusController {
 
     public BonusController(BonusService bonusService) {
         this.bonusService = bonusService;
-    }
-
-    @PostMapping("/use")
-    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<PaymentTransactionDto> useBonus(@Valid @RequestBody UseBonusRequest request) {
-        Long enteredByUserId = getCurrentUserId();
-        PaymentTransactionDto payment = bonusService.useBonus(request, enteredByUserId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
     }
 
     @GetMapping("/client/{clientId}/balance")
@@ -55,15 +40,6 @@ public class BonusController {
     public ResponseEntity<Void> recalculateBonusBalance(@PathVariable UUID clientId) {
         bonusService.recalculateBonusBalance(clientId);
         return ResponseEntity.ok().build();
-    }
-
-    private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            return userDetails.getUser().getId();
-        }
-        throw new RuntimeException("User not authenticated");
     }
 }
 

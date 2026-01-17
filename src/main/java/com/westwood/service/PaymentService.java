@@ -1,8 +1,6 @@
 package com.westwood.service;
 
-import com.westwood.common.dto.CreatePaymentRequest;
-import com.westwood.common.dto.PaymentTransactionDto;
-import com.westwood.common.dto.RefundPaymentRequest;
+import com.westwood.common.dto.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,5 +20,12 @@ public interface PaymentService {
     BigDecimal calculateTotalByClientAndTimeRange(UUID clientId, LocalDateTime fromDate, LocalDateTime toDate);
 
     PaymentTransactionDto refundPayment(String txId, RefundPaymentRequest request, Long enteredByUserId);
+
+    PagedPaymentSearchResponse searchPayments(PaymentSearchRequest request);
+
+    // Draft payment methods
+    PaymentTransactionDto createDraftPayment(CreateDraftPaymentRequest request, Long enteredByUserId);
+
+    PaymentTransactionDto completePayment(String txId, CompletePaymentRequest request, Long enteredByUserId);
 }
 

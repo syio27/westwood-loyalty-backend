@@ -25,6 +25,7 @@ public class BonusEventDto {
     private BigDecimal bonusPercentage;
     private BigDecimal paymentAmount; // Original payment amount
     private String grantReason; // Reason why bonus was granted (e.g., "CASHBACK", "BIRTHDAY", "FIRST_PAYMENT", "10TH_PAYMENT", "REFERRAL")
+    private LocalDateTime expiresAt; // When the bonus expires (null = never expires)
     
     // For USED events
     private BigDecimal originalPaymentAmount; // Payment amount before bonus

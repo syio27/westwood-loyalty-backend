@@ -29,5 +29,7 @@ public interface ClientService {
     ClientUpdateNotesDto updateClientNotes(UUID id, ClientUpdateNotesDto request);
 
     Set<String> saveOrUpdateClientTags(UUID id, ClientTagsRequestDto request);
+
+    PagedClientSearchResponse searchClients(ClientSearchRequest request);
 }
 

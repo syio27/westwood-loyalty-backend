@@ -1,7 +1,7 @@
 package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
-import com.westwood.common.dto.ClientValueDto;
+import com.westwood.common.dto.*;
 import com.westwood.service.AnalyticsService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -45,6 +45,74 @@ public class AnalyticsController {
     public ResponseEntity<ClientValueDto> getClientValue(@PathVariable UUID id) {
         ClientValueDto value = analyticsService.getClientValue(id);
         return ResponseEntity.ok(value);
+    }
+
+    // Dashboard analytics endpoints
+    @GetMapping("/revenue/monthly")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<RevenueAnalyticsDto> getMonthlyRevenue() {
+        RevenueAnalyticsDto revenue = analyticsService.getMonthlyRevenue();
+        return ResponseEntity.ok(revenue);
+    }
+
+    @GetMapping("/revenue/daily")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<RevenueAnalyticsDto> getDailyRevenue() {
+        RevenueAnalyticsDto revenue = analyticsService.getDailyRevenue();
+        return ResponseEntity.ok(revenue);
+    }
+
+    @GetMapping("/transactions/daily")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<TransactionCountAnalyticsDto> getDailyTransactionCount() {
+        TransactionCountAnalyticsDto count = analyticsService.getDailyTransactionCount();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/clients/new/daily")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ClientCountAnalyticsDto> getNewClientsCount() {
+        ClientCountAnalyticsDto count = analyticsService.getNewClientsCount();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/average-check")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<AverageCheckAnalyticsDto> getAverageCheck(
+            @RequestParam(defaultValue = "DAILY") String period) {
+        AverageCheckAnalyticsDto average = analyticsService.getAverageCheck(period);
+        return ResponseEntity.ok(average);
+    }
+
+    @GetMapping("/bonuses/accrued")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<BonusAccruedAnalyticsDto> getBonusesAccrued(
+            @RequestParam(defaultValue = "DAILY") String period) {
+        BonusAccruedAnalyticsDto bonuses = analyticsService.getBonusesAccrued(period);
+        return ResponseEntity.ok(bonuses);
+    }
+
+    @GetMapping("/refunds/daily")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ReturnsAnalyticsDto> getDailyRefundsCount() {
+        ReturnsAnalyticsDto refunds = analyticsService.getDailyRefundsCount();
+        return ResponseEntity.ok(refunds);
+    }
+
+    @GetMapping("/clients/active")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ClientCountAnalyticsDto> getActiveClientsCount() {
+        ClientCountAnalyticsDto count = analyticsService.getActiveClientsCount();
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/revenue/monthly/chart")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<MonthlyRevenueChartDto> getMonthlyRevenueChart(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        MonthlyRevenueChartDto chart = analyticsService.getMonthlyRevenueChart(year, month);
+        return ResponseEntity.ok(chart);
     }
 }
 

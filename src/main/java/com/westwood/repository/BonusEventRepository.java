@@ -2,6 +2,7 @@ package com.westwood.repository;
 
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
+import com.westwood.domain.BonusUsed;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,5 +29,30 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
 
     @Query("SELECT bg FROM BonusGranted bg JOIN FETCH bg.paymentTransaction pt WHERE pt.id = :paymentId")
     List<BonusGranted> findBonusGrantedByPaymentId(@Param("paymentId") Long paymentId);
+
+    @Query("SELECT bu FROM BonusUsed bu JOIN FETCH bu.paymentTransaction pt WHERE pt.txId = :txId")
+    List<BonusUsed> findBonusUsedByPaymentTxId(@Param("txId") String txId);
+
+    @Query("SELECT bu FROM BonusUsed bu JOIN FETCH bu.paymentTransaction pt WHERE pt.id = :paymentId")
+    List<BonusUsed> findBonusUsedByPaymentId(@Param("paymentId") Long paymentId);
+
+    // Analytics queries
+    @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
+    Long countBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
+
+    // Daily bonus counts grouped by day
+    // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
+    // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
+    @Query(value = "SELECT " +
+            "CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER), " +
+            "CAST(COUNT(CASE WHEN be.event_type = 'GRANTED' THEN 1 END) AS BIGINT), " +
+            "CAST(COUNT(CASE WHEN be.event_type = 'USED' THEN 1 END) AS BIGINT) " +
+            "FROM bonus_events be " +
+            "WHERE be.created_at >= :startDate AND be.created_at < :endDate " +
+            "AND be.event_type IN ('GRANTED', 'USED') " +
+            "GROUP BY EXTRACT(DAY FROM be.created_at) " +
+            "ORDER BY EXTRACT(DAY FROM be.created_at)", nativeQuery = true)
+    List<Object[]> getDailyBonusCountsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
+                                               @Param("endDate") java.time.LocalDateTime endDate);
 }
 

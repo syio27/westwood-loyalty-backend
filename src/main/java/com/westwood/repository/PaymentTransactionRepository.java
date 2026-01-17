@@ -1,6 +1,8 @@
 package com.westwood.repository;
 
 import com.westwood.domain.PaymentTransaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -44,5 +46,56 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
 
     @Query("SELECT p FROM PaymentTransaction p WHERE p.refundedPayment.txId = :txId")
     List<PaymentTransaction> findRefundsByPaymentTxId(@Param("txId") String txId);
+
+    // Analytics queries
+    @Query("SELECT SUM(p.amount) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal calculateTotalRevenueByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
+    Long countTransactionsByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.status = 'REFUNDED' AND p.createdAt BETWEEN :fromDate AND :toDate")
+    Long countReturnsByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    @Query("SELECT AVG(p.amount) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal calculateAverageAmountByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    // Daily revenue and transaction count grouped by day
+    // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
+    @Query(value = "SELECT " +
+            "CAST(EXTRACT(DAY FROM p.created_at) AS INTEGER), " +
+            "COALESCE(SUM(p.amount), 0), " +
+            "CAST(COUNT(p.id) AS BIGINT) " +
+            "FROM payment_transactions p " +
+            "WHERE p.status = 'COMPLETED' " +
+            "AND p.created_at >= :startDate AND p.created_at < :endDate " +
+            "GROUP BY EXTRACT(DAY FROM p.created_at) " +
+            "ORDER BY EXTRACT(DAY FROM p.created_at)", nativeQuery = true)
+    List<Object[]> getDailyRevenueAndTransactionsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
+                                                          @Param("endDate") java.time.LocalDateTime endDate);
+
+    // Search payments with pagination and filters
+    @Query("SELECT DISTINCT p FROM PaymentTransaction p " +
+            "JOIN FETCH p.client c " +
+            "LEFT JOIN FETCH p.enteredBy u " +
+            "LEFT JOIN FETCH p.refundedPayment rp " +
+            "WHERE " +
+            "(:paymentId IS NULL OR :paymentId = '' OR p.txId LIKE CONCAT('%', :paymentId, '%')) " +
+            "AND (:clientName IS NULL OR :clientName = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :clientName, '%')) OR LOWER(c.surname) LIKE LOWER(CONCAT('%', :clientName, '%'))) " +
+            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE CONCAT('%', :phone, '%')) " +
+            "AND (:periodFrom IS NULL OR p.createdAt >= :periodFrom) " +
+            "AND (:periodTo IS NULL OR p.createdAt <= :periodTo) " +
+            "AND (:paymentType IS NULL OR :paymentType = 'ALL' OR " +
+            "   (:paymentType = 'PAID' AND p.status = 'COMPLETED') OR " +
+            "   (:paymentType = 'REFUND' AND p.status = 'REFUNDED')) " +
+            "AND p.status != 'REFUND'") // Exclude internal REFUND status transactions
+    Page<PaymentTransaction> searchPaymentsWithFilters(
+            @Param("paymentId") String paymentId,
+            @Param("clientName") String clientName,
+            @Param("phone") String phone,
+            @Param("periodFrom") LocalDateTime periodFrom,
+            @Param("periodTo") LocalDateTime periodTo,
+            @Param("paymentType") String paymentType,
+            Pageable pageable);
 }
 

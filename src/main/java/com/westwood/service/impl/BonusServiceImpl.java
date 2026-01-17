@@ -1,30 +1,21 @@
 package com.westwood.service.impl;
 
 import com.westwood.common.dto.BonusBalanceDto;
-import com.westwood.common.dto.PaymentTransactionDto;
-import com.westwood.common.dto.UseBonusRequest;
-import com.westwood.common.exception.InsufficientBonusException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusType;
 import com.westwood.domain.BonusTypeEnum;
-import com.westwood.domain.BonusUsed;
 import com.westwood.domain.Client;
 import com.westwood.domain.PaymentTransaction;
-import com.westwood.domain.User;
 import com.westwood.event.BonusGrantedEvent;
-import com.westwood.event.BonusUsedEvent;
 import com.westwood.repository.BonusTypeRepository;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
-import com.westwood.repository.UserRepository;
 import com.westwood.service.BonusService;
 import com.westwood.service.EventSourcingService;
-import com.westwood.service.TransactionIdentifierService;
 import com.westwood.util.mapper.BonusMapper;
-import com.westwood.util.mapper.PaymentMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,30 +31,21 @@ public class BonusServiceImpl implements BonusService {
     private final BonusTypeRepository bonusTypeRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final ClientRepository clientRepository;
-    private final UserRepository userRepository;
     private final EventSourcingService eventSourcingService;
     private final BonusMapper bonusMapper;
-    private final PaymentMapper paymentMapper;
-    private final TransactionIdentifierService transactionIdentifierService;
 
     public BonusServiceImpl(BonusEventRepository bonusEventRepository,
                            BonusTypeRepository bonusTypeRepository,
                            PaymentTransactionRepository paymentRepository,
                            ClientRepository clientRepository,
-                           UserRepository userRepository,
                            EventSourcingService eventSourcingService,
-                           BonusMapper bonusMapper,
-                           PaymentMapper paymentMapper,
-                           TransactionIdentifierService transactionIdentifierService) {
+                           BonusMapper bonusMapper) {
         this.bonusEventRepository = bonusEventRepository;
         this.bonusTypeRepository = bonusTypeRepository;
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
-        this.userRepository = userRepository;
         this.eventSourcingService = eventSourcingService;
         this.bonusMapper = bonusMapper;
-        this.paymentMapper = paymentMapper;
-        this.transactionIdentifierService = transactionIdentifierService;
     }
 
     /**
@@ -93,6 +75,12 @@ public class BonusServiceImpl implements BonusService {
             bonusGranted.setBonusType(cashbackBonus);
             bonusGranted.setGrantReason("CASHBACK");
 
+            // Calculate expiration date if expirationDays is set
+            if (cashbackBonus.getExpirationDays() != null && cashbackBonus.getExpirationDays() > 0) {
+                java.time.LocalDateTime expiresAt = java.time.LocalDateTime.now().plusDays(cashbackBonus.getExpirationDays());
+                bonusGranted.setExpiresAt(expiresAt);
+            }
+
             BonusGranted savedBonus = bonusEventRepository.save(bonusGranted);
 
             // Create and append BonusGranted event
@@ -111,77 +99,6 @@ public class BonusServiceImpl implements BonusService {
 
         // If no BASIC_CASHBACK bonus type is configured, throw an exception
         throw new ResourceNotFoundException("No active BASIC_CASHBACK bonus type found. Please configure a cashback bonus type.");
-    }
-
-    @Override
-    public PaymentTransactionDto useBonus(UseBonusRequest request, Long enteredByUserId) {
-        Client client = clientRepository.findByUuid(request.getClientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + request.getClientId() + "' not found"));
-
-        User enteredBy = userRepository.findById(enteredByUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User with id '" + enteredByUserId + "' not found"));
-
-        // Check if client has enough bonus balance
-        BonusBalanceDto balance = getClientBonusBalance(request.getClientId());
-        if (balance.getCurrentBalance().compareTo(request.getBonusAmountToUse()) < 0) {
-            throw new InsufficientBonusException("Insufficient bonus balance. Available: " + balance.getCurrentBalance() + ", Requested: " + request.getBonusAmountToUse());
-        }
-
-        BigDecimal finalPaymentAmount = request.getPaymentAmount().subtract(request.getBonusAmountToUse());
-
-        // Generate unique transaction identifier
-        String transactionIdentifier = transactionIdentifierService.generateNextTransactionIdentifier();
-        int yearSuffix = transactionIdentifierService.parseTransactionIdentifier(transactionIdentifier);
-
-        // Create payment with reduced amount
-        PaymentTransaction payment = new PaymentTransaction();
-        payment.setClient(client);
-        payment.setEnteredBy(enteredBy);
-        payment.setAmount(finalPaymentAmount);
-        payment.setNotes(request.getNotes());
-        payment.setStatus(PaymentTransaction.PaymentStatus.COMPLETED);
-        payment.setTransactionYear(yearSuffix);
-        payment.setTransactionNumber(0L); // Not used anymore, set to 0
-        payment.setTxId(transactionIdentifier);
-
-        PaymentTransaction savedPayment = paymentRepository.save(payment);
-
-        // Create BonusUsed event
-        BonusUsed bonusUsed = new BonusUsed();
-        bonusUsed.setClient(client);
-        // eventType is automatically set by Hibernate via @DiscriminatorValue("USED")
-        bonusUsed.setEventId(UUID.randomUUID());
-        bonusUsed.setBonusAmount(request.getBonusAmountToUse());
-        bonusUsed.setPaymentTransaction(savedPayment);
-        bonusUsed.setOriginalPaymentAmount(request.getPaymentAmount());
-        bonusUsed.setFinalPaymentAmount(finalPaymentAmount);
-
-        BonusUsed savedBonusUsed = bonusEventRepository.save(bonusUsed);
-
-        // Create and append BonusUsed event
-        BonusUsedEvent event = new BonusUsedEvent(
-                savedBonusUsed.getId(),
-                transactionIdentifier,
-                savedPayment.getId(),
-                client.getId(), // Use internal Long ID for events
-                request.getBonusAmountToUse(),
-                request.getPaymentAmount(),
-                finalPaymentAmount
-        );
-        eventSourcingService.appendBonusUsedEvent(event);
-
-        // Also create PaymentCreated event
-        com.westwood.event.PaymentCreatedEvent paymentEvent = new com.westwood.event.PaymentCreatedEvent(
-                transactionIdentifier,
-                savedPayment.getId(),
-                client.getId(),
-                enteredByUserId,
-                finalPaymentAmount,
-                request.getNotes()
-        );
-        eventSourcingService.appendPaymentCreatedEvent(paymentEvent);
-
-        return paymentMapper.toDto(savedPayment);
     }
 
     @Override

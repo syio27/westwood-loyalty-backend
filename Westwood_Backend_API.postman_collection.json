@@ -598,6 +598,40 @@
 					"response": []
 				},
 				{
+					"name": "Search Clients with Pagination",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"\",\n  \"phone\": \"\",\n  \"email\": \"\",\n  \"lastVisitFrom\": null,\n  \"lastVisitTo\": null,\n  \"tags\": [],\n  \"clientType\": null,\n  \"sortBy\": \"lastVisit\",\n  \"sortDirection\": \"DESC\",\n  \"page\": 0,\n  \"size\": 10\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/clients/search",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"clients",
+								"search"
+							],
+							"description": "Search clients with filters and pagination. All filter fields are optional. sortBy can be: 'name', 'createdAt', 'lastVisit'. sortDirection can be 'ASC' or 'DESC'."
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get All Tags",
 					"request": {
 						"method": "GET",
@@ -655,7 +689,82 @@
 								"v1",
 								"payments"
 							]
-						}
+						},
+						"description": "Creates a payment immediately with COMPLETED status. For workflows that require bonus application before completion, use Create Draft Payment instead. This endpoint creates PaymentCreated event and processes bonuses (cashback, milestones) immediately."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Draft Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"{{clientId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/draft",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"draft"
+							]
+						},
+						"description": "Step 1: Creates a draft payment with PENDING status. Use this when opening the payment form to get a paymentTxId. Returns paymentTxId that should be used in the Complete Payment request."
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"originalAmount\": 12000.00,\n  \"bonusAmountUsed\": 2000.00,\n  \"notes\": \"Payment for services\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/{{paymentTxId}}/complete",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"{{paymentTxId}}",
+								"complete"
+							]
+						},
+						"description": "Finalizes a PENDING payment with all payment data. originalAmount is the purchase amount (12000), bonusAmountUsed is the bonus discount (2000, optional - default 0), finalAmount (10000) is calculated automatically. Creates BonusUsed event if bonuses are used. Grants cashback bonuses only if no bonuses were used."
 					},
 					"response": []
 				},
@@ -780,14 +889,9 @@
 						}
 					},
 					"response": []
-				}
-			]
-		},
-		{
-			"name": "Bonuses",
-			"item": [
+				},
 				{
-					"name": "Use Bonus",
+					"name": "Search Payments with Pagination",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -802,23 +906,34 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"paymentAmount\": 150.00,\n  \"bonusAmountToUse\": 25.00,\n  \"notes\": \"Using bonus for payment\"\n}"
+							"raw": "{\n  \"paymentId\": \"\",\n  \"clientName\": \"\",\n  \"phone\": \"\",\n  \"periodFrom\": null,\n  \"periodTo\": null,\n  \"paymentMethod\": null,\n  \"paymentType\": \"ALL\",\n  \"sortBy\": \"date\",\n  \"sortDirection\": \"DESC\",\n  \"page\": 0,\n  \"size\": 10\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/v1/bonuses/use",
+							"raw": "{{baseUrl}}/api/v1/payments/search",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"v1",
-								"bonuses",
-								"use"
-							]
+								"payments",
+								"search"
+							],
+							"description": "Search payments with filters and pagination. All filter fields are optional. paymentType can be: 'ALL', 'PAID' (COMPLETED), 'REFUND' (REFUNDED). sortBy can be: 'date', 'amount', 'clientName'. sortDirection can be 'ASC' or 'DESC'. paymentMethod is reserved for future use. Response includes bonusGranted (bonuses granted for this payment), bonusUsed (bonuses used to cover this payment), and refundReason (if payment was refunded)."
 						}
 					},
 					"response": []
-				},
+				}
+			]
+		},
+		{
+			"name": "Bonuses",
+			"item": [
 				{
 					"name": "Get Client Bonus Balance",
 					"request": {
@@ -1191,6 +1306,268 @@
 								"{{clientId}}",
 								"value"
 							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monthly Revenue",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/monthly",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"monthly"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Revenue",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Transaction Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/transactions/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"transactions",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get New Clients Count (Daily)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/new/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"new",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Average Check",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/average-check?period=DAILY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"average-check"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "DAILY",
+									"description": "Period: DAILY or MONTHLY"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bonuses Accrued",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/bonuses/accrued?period=DAILY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"bonuses",
+								"accrued"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "DAILY",
+									"description": "Period: DAILY or MONTHLY"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Daily Refunds Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/refunds/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"refunds",
+								"daily"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Clients Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/clients/active",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"clients",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Monthly Revenue Chart",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/analytics/revenue/monthly/chart?year=2024&month=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"revenue",
+								"monthly",
+								"chart"
+							],
+							"query": [
+								{
+									"key": "year",
+									"value": "2024",
+									"description": "Year (optional, defaults to current year)"
+								},
+								{
+									"key": "month",
+									"value": "1",
+									"description": "Month 1-12 (optional, defaults to current month)"
+								}
+							],
+							"description": "Returns daily revenue data for the specified month. Each day contains: revenue, transaction count, bonuses granted, bonuses used. Data is returned from day 1 to the current day (if current month) or to the last day of the month."
 						}
 					},
 					"response": []

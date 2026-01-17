@@ -1,9 +1,7 @@
 package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
-import com.westwood.common.dto.CreatePaymentRequest;
-import com.westwood.common.dto.PaymentTransactionDto;
-import com.westwood.common.dto.RefundPaymentRequest;
+import com.westwood.common.dto.*;
 import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.PaymentService;
 import jakarta.validation.Valid;
@@ -38,6 +36,24 @@ public class PaymentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
     }
 
+    @PostMapping("/draft")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PaymentTransactionDto> createDraftPayment(@Valid @RequestBody CreateDraftPaymentRequest request) {
+        Long enteredByUserId = getCurrentUserId();
+        PaymentTransactionDto draftPayment = paymentService.createDraftPayment(request, enteredByUserId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(draftPayment);
+    }
+
+    @PostMapping("/{txId}/complete")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PaymentTransactionDto> completePayment(
+            @PathVariable String txId,
+            @Valid @RequestBody CompletePaymentRequest request) {
+        Long enteredByUserId = getCurrentUserId();
+        PaymentTransactionDto completedPayment = paymentService.completePayment(txId, request, enteredByUserId);
+        return ResponseEntity.ok(completedPayment);
+    }
+
     @GetMapping("/{txId}")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<PaymentTransactionDto> getPaymentByTxId(@PathVariable String txId) {
@@ -70,6 +86,13 @@ public class PaymentController {
         Long enteredByUserId = getCurrentUserId();
         PaymentTransactionDto refundedPayment = paymentService.refundPayment(txId, request, enteredByUserId);
         return ResponseEntity.ok(refundedPayment);
+    }
+
+    @PostMapping("/search")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PagedPaymentSearchResponse> searchPayments(@Valid @RequestBody PaymentSearchRequest request) {
+        PagedPaymentSearchResponse response = paymentService.searchPayments(request);
+        return ResponseEntity.ok(response);
     }
 
     private Long getCurrentUserId() {

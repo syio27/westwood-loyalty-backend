@@ -4,16 +4,26 @@ import com.westwood.common.dto.*;
 import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.Client;
+import com.westwood.domain.PaymentTransaction;
 import com.westwood.domain.Tag;
 import com.westwood.repository.ClientRepository;
+import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.TagRepository;
 import com.westwood.service.BonusService;
 import com.westwood.service.ClientService;
 import com.westwood.service.EventBonusService;
 import com.westwood.util.mapper.ClientMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,15 +39,18 @@ public class ClientServiceImpl implements ClientService {
     private final ClientMapper clientMapper;
     private final BonusService bonusService;
     private final EventBonusService eventBonusService;
+    private final PaymentTransactionRepository paymentTransactionRepository;
 
     public ClientServiceImpl(ClientRepository clientRepository, TagRepository tagRepository,
                              ClientMapper clientMapper, BonusService bonusService, 
-                             EventBonusService eventBonusService) {
+                             EventBonusService eventBonusService,
+                             PaymentTransactionRepository paymentTransactionRepository) {
         this.clientRepository = clientRepository;
         this.tagRepository = tagRepository;
         this.clientMapper = clientMapper;
         this.bonusService = bonusService;
         this.eventBonusService = eventBonusService;
+        this.paymentTransactionRepository = paymentTransactionRepository;
     }
 
     private Client validateAndGetClient(UUID id, String x) {
@@ -251,6 +264,128 @@ public class ClientServiceImpl implements ClientService {
         } while (!isUnique);
 
         return code;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedClientSearchResponse searchClients(ClientSearchRequest request) {
+        // Prepare date range for last visit filter
+        LocalDateTime lastVisitFrom = null;
+        LocalDateTime lastVisitTo = null;
+        if (request.getLastVisitFrom() != null) {
+            lastVisitFrom = LocalDateTime.of(request.getLastVisitFrom(), LocalTime.MIN);
+        }
+        if (request.getLastVisitTo() != null) {
+            lastVisitTo = LocalDateTime.of(request.getLastVisitTo(), LocalTime.MAX);
+        }
+
+        // Normalize empty strings to null
+        String name = (request.getName() != null && request.getName().trim().isEmpty()) ? null : request.getName();
+        String phone = (request.getPhone() != null && request.getPhone().trim().isEmpty()) ? null : request.getPhone();
+        String email = (request.getEmail() != null && request.getEmail().trim().isEmpty()) ? null : request.getEmail();
+        
+        // Normalize empty tag list to null
+        List<String> tagNames = (request.getTags() != null && request.getTags().isEmpty()) ? null : request.getTags();
+
+        // Prepare sorting
+        Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
+        Pageable pageable = PageRequest.of(
+            request.getPage() != null ? request.getPage() : 0,
+            request.getSize() != null ? request.getSize() : 10,
+            sort
+        );
+
+        // Execute search
+        Page<Client> clientPage = clientRepository.searchClientsWithFilters(
+            name,
+            phone,
+            email,
+            request.getClientType(),
+            tagNames,
+            lastVisitFrom,
+            lastVisitTo,
+            pageable
+        );
+
+        // Convert to DTOs with statistics
+        List<ClientSearchResultDto> content = clientPage.getContent().stream()
+            .map(this::toSearchResultDto)
+            .collect(Collectors.toList());
+
+        return new PagedClientSearchResponse(
+            content,
+            clientPage.getNumber(),
+            clientPage.getSize(),
+            clientPage.getTotalElements(),
+            clientPage.getTotalPages(),
+            clientPage.isFirst(),
+            clientPage.isLast()
+        );
+    }
+
+    private ClientSearchResultDto toSearchResultDto(Client client) {
+        Long internalClientId = client.getId();
+        
+        // Get payment statistics
+        List<PaymentTransaction> payments = paymentTransactionRepository
+            .findByClientIdOrderByCreatedAtDesc(internalClientId);
+        
+        BigDecimal totalSpent = payments.stream()
+            .map(PaymentTransaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        Long transactionCount = (long) payments.size();
+        LocalDateTime lastVisit = payments.isEmpty() ? null : payments.get(0).getCreatedAt();
+        
+        // Get bonus information
+        BonusBalanceDto bonusBalance = bonusService.getClientBonusBalance(client.getUuid());
+        BigDecimal bonusUsed = bonusBalance.getTotalAccumulated()
+            .subtract(bonusBalance.getCurrentBalance());
+        
+        // Get tag names
+        Set<String> tagNames = client.getTags() != null ?
+            client.getTags().stream()
+                .map(Tag::getName)
+                .collect(Collectors.toSet()) :
+            new HashSet<>();
+        
+        return new ClientSearchResultDto(
+            client.getUuid(),
+            client.getName(),
+            client.getSurname(),
+            client.getPhone(),
+            client.getEmail(),
+            client.getClientType(),
+            tagNames,
+            totalSpent,
+            transactionCount,
+            bonusBalance.getCurrentBalance(),
+            bonusUsed,
+            lastVisit,
+            client.getCreatedAt()
+        );
+    }
+
+    private Sort prepareSort(String sortBy, String sortDirection) {
+        if (sortBy == null || sortBy.isEmpty()) {
+            sortBy = "lastVisit"; // Default sort
+        }
+        
+        Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? 
+            Sort.Direction.ASC : Sort.Direction.DESC;
+        
+        // Map sort field names to actual entity fields
+        switch (sortBy.toLowerCase()) {
+            case "name":
+                return Sort.by(direction, "name", "surname");
+            case "createdat":
+                return Sort.by(direction, "createdAt");
+            case "lastvisit":
+            default:
+                // For last visit, we'll sort by createdAt as a proxy
+                // In a real scenario, you might want to use a subquery or join
+                return Sort.by(direction, "createdAt");
+        }
     }
 }
 
