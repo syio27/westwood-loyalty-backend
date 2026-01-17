@@ -20,6 +20,9 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     @Query("SELECT p FROM PaymentTransaction p LEFT JOIN FETCH p.enteredBy WHERE p.client.id = :clientId AND p.status != 'REFUND' ORDER BY p.createdAt DESC")
     List<PaymentTransaction> findByClientIdOrderByCreatedAtDesc(@Param("clientId") Long clientId);
 
+    @Query("SELECT p FROM PaymentTransaction p LEFT JOIN FETCH p.enteredBy WHERE p.client.id = :clientId AND p.status != 'REFUND' ORDER BY p.createdAt DESC")
+    Page<PaymentTransaction> findByClientIdOrderByCreatedAtDesc(@Param("clientId") Long clientId, Pageable pageable);
+
     @Query("SELECT p FROM PaymentTransaction p LEFT JOIN FETCH p.enteredBy WHERE p.client.id = :clientId AND p.status != 'REFUND' AND p.createdAt BETWEEN :fromDate AND :toDate ORDER BY p.createdAt DESC")
     List<PaymentTransaction> findByClientIdAndTimeRange(@Param("clientId") Long clientId,
                                                          @Param("fromDate") LocalDateTime fromDate,
@@ -29,6 +32,13 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     BigDecimal calculateTotalByClientAndTimeRange(@Param("clientId") Long clientId,
                                                              @Param("fromDate") LocalDateTime fromDate,
                                                              @Param("toDate") LocalDateTime toDate);
+
+    // Client analytics queries
+    @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status = 'COMPLETED'")
+    Long countCompletedTransactionsByClientId(@Param("clientId") Long clientId);
+
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status = 'COMPLETED'")
+    BigDecimal calculateTotalRevenueByClientId(@Param("clientId") Long clientId);
 
     @Query("SELECT p FROM PaymentTransaction p LEFT JOIN FETCH p.enteredBy WHERE p.enteredBy.id = :userId ORDER BY p.createdAt DESC")
     List<PaymentTransaction> findByEnteredByIdOrderByCreatedAtDesc(@Param("userId") Long userId);
@@ -77,8 +87,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
             "FROM payment_transactions p " +
             "WHERE p.status = 'COMPLETED' " +
             "AND p.created_at >= :startDate AND p.created_at < :endDate " +
-            "GROUP BY EXTRACT(DAY FROM p.created_at) " +
-            "ORDER BY EXTRACT(DAY FROM p.created_at)", nativeQuery = true)
+            "GROUP BY CAST(EXTRACT(DAY FROM p.created_at) AS INTEGER) " +
+            "ORDER BY CAST(EXTRACT(DAY FROM p.created_at) AS INTEGER)", nativeQuery = true)
     List<Object[]> getDailyRevenueAndTransactionsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                           @Param("endDate") java.time.LocalDateTime endDate);
 

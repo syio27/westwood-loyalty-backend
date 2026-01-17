@@ -122,5 +122,12 @@ public class AnalyticsController {
         OverallTotalsDto totals = analyticsService.getOverallTotals();
         return ResponseEntity.ok(totals);
     }
+
+    @GetMapping("/clients/{clientId}/totals")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ClientTotalsDto> getClientTotals(@PathVariable UUID clientId) {
+        ClientTotalsDto totals = analyticsService.getClientTotals(clientId);
+        return ResponseEntity.ok(totals);
+    }
 }
 

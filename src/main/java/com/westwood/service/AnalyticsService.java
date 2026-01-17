@@ -35,5 +35,7 @@ public interface AnalyticsService {
     MonthlyRevenueChartDto getMonthlyRevenueChart(Integer year, Integer month);
 
     OverallTotalsDto getOverallTotals();
+
+    ClientTotalsDto getClientTotals(UUID clientId);
 }
 

@@ -443,6 +443,31 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return new OverallTotalsDto(totalPayments, totalRevenue, totalBonusesGranted, totalClients);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ClientTotalsDto getClientTotals(UUID clientId) {
+        Client client = clientRepository.findByUuid(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
+
+        Long internalClientId = client.getId();
+
+        // Get payment statistics
+        Long totalPayments = paymentRepository.countCompletedTransactionsByClientId(internalClientId);
+        if (totalPayments == null) totalPayments = 0L;
+
+        BigDecimal totalRevenue = paymentRepository.calculateTotalRevenueByClientId(internalClientId);
+        if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
+
+        // Get bonus statistics
+        BigDecimal totalBonusesGranted = bonusEventRepository.sumBonusesGrantedByClientId(internalClientId);
+        if (totalBonusesGranted == null) totalBonusesGranted = BigDecimal.ZERO;
+
+        BigDecimal totalBonusesUsed = bonusEventRepository.sumBonusesUsedByClientId(internalClientId);
+        if (totalBonusesUsed == null) totalBonusesUsed = BigDecimal.ZERO;
+
+        return new ClientTotalsDto(totalPayments, totalRevenue, totalBonusesGranted, totalBonusesUsed);
+    }
+
     private BigDecimal calculatePercentageChange(BigDecimal current, BigDecimal previous) {
         if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
             return current.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.valueOf(100) : BigDecimal.ZERO;

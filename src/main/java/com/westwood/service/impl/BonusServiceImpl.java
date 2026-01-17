@@ -1,6 +1,8 @@
 package com.westwood.service.impl;
 
 import com.westwood.common.dto.BonusBalanceDto;
+import com.westwood.common.dto.BonusEventDto;
+import com.westwood.common.dto.PagedBonusHistoryResponse;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
@@ -16,12 +18,17 @@ import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.service.BonusService;
 import com.westwood.service.EventSourcingService;
 import com.westwood.util.mapper.BonusMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -115,11 +122,31 @@ public class BonusServiceImpl implements BonusService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.westwood.common.dto.BonusEventDto> getClientBonusHistory(UUID clientId) {
+    public PagedBonusHistoryResponse getClientBonusHistory(UUID clientId, Integer page, Integer size) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
-        List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId()); // Use internal ID
-        return bonusMapper.toDtoList(events);
+        
+        Pageable pageable = PageRequest.of(
+            page != null ? page : 0,
+            size != null ? size : 10,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        
+        Page<BonusEvent> eventPage = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId(), pageable);
+        
+        List<BonusEventDto> content = eventPage.getContent().stream()
+                .map(bonusMapper::toDto)
+                .collect(Collectors.toList());
+        
+        return new PagedBonusHistoryResponse(
+            content,
+            eventPage.getNumber(),
+            eventPage.getSize(),
+            eventPage.getTotalElements(),
+            eventPage.getTotalPages(),
+            eventPage.isFirst(),
+            eventPage.isLast()
+        );
     }
 
     @Override

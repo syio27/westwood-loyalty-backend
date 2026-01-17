@@ -3,6 +3,8 @@ package com.westwood.repository;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusUsed;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +18,9 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
 
     @Query("SELECT be FROM BonusEvent be LEFT JOIN FETCH be.client WHERE be.client.id = :clientId ORDER BY be.createdAt DESC")
     List<BonusEvent> findByClientIdOrderByCreatedAtDesc(@Param("clientId") Long clientId);
+
+    @Query("SELECT be FROM BonusEvent be LEFT JOIN FETCH be.client WHERE be.client.id = :clientId ORDER BY be.createdAt DESC")
+    Page<BonusEvent> findByClientIdOrderByCreatedAtDesc(@Param("clientId") Long clientId, Pageable pageable);
 
     // Query by discriminator value instead of eventType field
     @Query("SELECT be FROM BonusEvent be WHERE be.client.id = :clientId AND TYPE(be) = :eventClass ORDER BY be.createdAt DESC")
@@ -48,6 +53,13 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT SUM(bg.bonusAmount) FROM BonusGranted bg")
     BigDecimal sumAllBonusesGrantedAmount();
 
+    // Client analytics queries
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.client.id = :clientId")
+    BigDecimal sumBonusesGrantedByClientId(@Param("clientId") Long clientId);
+
+    @Query("SELECT COALESCE(SUM(bu.bonusAmount), 0) FROM BonusUsed bu WHERE bu.client.id = :clientId")
+    BigDecimal sumBonusesUsedByClientId(@Param("clientId") Long clientId);
+
     // Daily bonus counts grouped by day
     // Note: event_type discriminator values are 'GRANTED' and 'USED' (see @DiscriminatorValue annotations)
     // Compatible with both H2 and PostgreSQL - both support EXTRACT(DAY FROM ...)
@@ -58,8 +70,8 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
             "FROM bonus_events be " +
             "WHERE be.created_at >= :startDate AND be.created_at < :endDate " +
             "AND be.event_type IN ('GRANTED', 'USED') " +
-            "GROUP BY EXTRACT(DAY FROM be.created_at) " +
-            "ORDER BY EXTRACT(DAY FROM be.created_at)", nativeQuery = true)
+            "GROUP BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER) " +
+            "ORDER BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER)", nativeQuery = true)
     List<Object[]> getDailyBonusCountsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                @Param("endDate") java.time.LocalDateTime endDate);
 }

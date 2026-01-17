@@ -3,6 +3,7 @@ package com.westwood.controller;
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.BonusBalanceDto;
 import com.westwood.common.dto.BonusEventDto;
+import com.westwood.common.dto.PagedBonusHistoryResponse;
 import com.westwood.service.BonusService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,9 +31,12 @@ public class BonusController {
 
     @GetMapping("/client/{clientId}/history")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
-    public ResponseEntity<List<BonusEventDto>> getClientBonusHistory(@PathVariable UUID clientId) {
-        List<BonusEventDto> history = bonusService.getClientBonusHistory(clientId);
-        return ResponseEntity.ok(history);
+    public ResponseEntity<PagedBonusHistoryResponse> getClientBonusHistory(
+            @PathVariable UUID clientId,
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        PagedBonusHistoryResponse response = bonusService.getClientBonusHistory(clientId, page, size);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/recalculate/{clientId}")

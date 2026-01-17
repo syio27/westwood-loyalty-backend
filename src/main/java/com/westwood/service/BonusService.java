@@ -13,7 +13,7 @@ public interface BonusService {
 
     BonusBalanceDto getClientBonusBalance(UUID clientId);
 
-    List<BonusEventDto> getClientBonusHistory(UUID clientId);
+    com.westwood.common.dto.PagedBonusHistoryResponse getClientBonusHistory(UUID clientId, Integer page, Integer size);
 
     void recalculateBonusBalance(UUID clientId);
 }

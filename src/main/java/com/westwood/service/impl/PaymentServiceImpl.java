@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -123,13 +122,32 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PaymentSearchResultDto> getPaymentsByClientId(UUID clientId) {
+    public PagedPaymentSearchResponse getPaymentsByClientId(UUID clientId, Integer page, Integer size) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
         Long internalClientId = client.getId(); // Convert to internal ID
-        return paymentRepository.findByClientIdOrderByCreatedAtDesc(internalClientId).stream()
+        
+        Pageable pageable = PageRequest.of(
+            page != null ? page : 0,
+            size != null ? size : 10,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        
+        Page<PaymentTransaction> paymentPage = paymentRepository.findByClientIdOrderByCreatedAtDesc(internalClientId, pageable);
+        
+        List<PaymentSearchResultDto> content = paymentPage.getContent().stream()
                 .map(this::toSearchResultDto)
                 .collect(Collectors.toList());
+        
+        return new PagedPaymentSearchResponse(
+            content,
+            paymentPage.getNumber(),
+            paymentPage.getSize(),
+            paymentPage.getTotalElements(),
+            paymentPage.getTotalPages(),
+            paymentPage.isFirst(),
+            paymentPage.isLast()
+        );
     }
 
     @Override
