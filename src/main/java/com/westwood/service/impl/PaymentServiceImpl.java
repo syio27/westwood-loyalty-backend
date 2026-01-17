@@ -531,5 +531,19 @@ public class PaymentServiceImpl implements PaymentService {
         }
         return balance;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PaymentSearchResultDto> getTransactionsByUserId(UUID userId) {
+        User user = userRepository.findByUuid(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User with id '" + userId + "' not found"));
+        
+        List<PaymentTransaction> transactions = paymentRepository.findByEnteredByIdOrderByCreatedAtDesc(user.getId());
+        
+        return transactions.stream()
+                .filter(tx -> tx.getStatus() != PaymentTransaction.PaymentStatus.REFUND) // Exclude internal refund transactions
+                .map(this::toSearchResultDto)
+                .collect(Collectors.toList());
+    }
 }
 

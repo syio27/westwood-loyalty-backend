@@ -4,6 +4,7 @@ import com.westwood.common.dto.CreateUserRequest;
 import com.westwood.common.dto.UserDto;
 import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
+import com.westwood.domain.AccountStatus;
 import com.westwood.domain.User;
 import com.westwood.repository.UserRepository;
 import com.westwood.service.UserService;
@@ -89,6 +90,46 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByUuid(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User with id '" + id + "' not found"));
         userRepository.deleteById(user.getId()); // Use internal ID for deletion
+    }
+
+    @Override
+    public UserDto lockUser(UUID id) {
+        User user = userRepository.findByUuid(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User with id '" + id + "' not found"));
+        
+        user.setAccountStatus(AccountStatus.LOCKED);
+        user.setActive(false);
+        
+        User updatedUser = userRepository.save(user);
+        return userMapper.toDto(updatedUser);
+    }
+
+    @Override
+    public UserDto unlockUser(UUID id) {
+        User user = userRepository.findByUuid(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User with id '" + id + "' not found"));
+        
+        // Only unlock if currently locked
+        if (user.getAccountStatus() == AccountStatus.LOCKED) {
+            user.setAccountStatus(AccountStatus.ACTIVE);
+            user.setActive(true);
+        }
+        
+        User updatedUser = userRepository.save(user);
+        return userMapper.toDto(updatedUser);
+    }
+
+    @Override
+    @Transactional
+    public int deleteLockedUsers() {
+        List<User> usersToDelete = userRepository.findAll().stream()
+                .filter(user -> user.getAccountStatus() == AccountStatus.LOCKED)
+                .collect(Collectors.toList());
+        
+        int count = usersToDelete.size();
+        usersToDelete.forEach(user -> userRepository.deleteById(user.getId()));
+        
+        return count;
     }
 }
 

@@ -43,7 +43,11 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        // Account is locked if status is LOCKED
+        if (user.getAccountStatus() == null) {
+            return true;
+        }
+        return user.getAccountStatus() != AccountStatus.LOCKED;
     }
 
     @Override
@@ -53,10 +57,13 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        // User must be active AND have an active account status (not pending activation or expired)
-        return user.getActive() && 
-               user.getAccountStatus() != null && 
-               user.getAccountStatus() == AccountStatus.ACTIVE;
+        // User must be active AND have an active account status
+        // Cannot be LOCKED, BANNED, or other non-active statuses
+        if (!user.getActive() || user.getAccountStatus() == null) {
+            return false;
+        }
+        AccountStatus status = user.getAccountStatus();
+        return status == AccountStatus.ACTIVE;
     }
 
     public User getUser() {

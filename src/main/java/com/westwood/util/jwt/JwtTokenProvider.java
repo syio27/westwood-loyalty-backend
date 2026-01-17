@@ -34,6 +34,17 @@ public class JwtTokenProvider {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractUserId(String token) {
+        Claims claims = extractAllClaims(token);
+        // Try to get userId from claims, fallback to subject (email) for backward compatibility
+        String userId = claims.get("userId", String.class);
+        if (userId != null) {
+            return userId;
+        }
+        // Fallback: if no userId claim, extract email and look up user
+        return extractEmail(token);
+    }
+
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
@@ -43,7 +54,7 @@ public class JwtTokenProvider {
         return claimsResolver.apply(claims);
     }
 
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
@@ -57,6 +68,12 @@ public class JwtTokenProvider {
 
     public String generateAccessToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        // Store userId (UUID) in claims for reliable user identification
+        // Subject still contains email for backward compatibility
+        if (userDetails instanceof com.westwood.security.UserDetailsImpl) {
+            com.westwood.security.UserDetailsImpl userDetailsImpl = (com.westwood.security.UserDetailsImpl) userDetails;
+            claims.put("userId", userDetailsImpl.getUser().getUuid().toString());
+        }
         return createToken(claims, userDetails.getUsername(), accessTokenExpiration);
     }
 
@@ -67,6 +84,11 @@ public class JwtTokenProvider {
     public String generateRefreshToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
+        // Store userId (UUID) in claims for reliable user identification
+        if (userDetails instanceof com.westwood.security.UserDetailsImpl) {
+            com.westwood.security.UserDetailsImpl userDetailsImpl = (com.westwood.security.UserDetailsImpl) userDetails;
+            claims.put("userId", userDetailsImpl.getUser().getUuid().toString());
+        }
         return createToken(claims, userDetails.getUsername(), refreshTokenExpiration);
     }
 
@@ -81,8 +103,22 @@ public class JwtTokenProvider {
     }
 
     public Boolean validateToken(String token, UserDetails userDetails) {
+        // Validate token expiration first
+        if (isTokenExpired(token)) {
+            return false;
+        }
+        
+        // If token has userId claim, validate by UUID (more reliable)
+        Claims claims = extractAllClaims(token);
+        String userId = claims.get("userId", String.class);
+        if (userId != null && userDetails instanceof com.westwood.security.UserDetailsImpl) {
+            com.westwood.security.UserDetailsImpl userDetailsImpl = (com.westwood.security.UserDetailsImpl) userDetails;
+            return userId.equals(userDetailsImpl.getUser().getUuid().toString());
+        }
+        
+        // Fallback: validate by email for backward compatibility
         final String email = extractEmail(token);
-        return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        return email.equals(userDetails.getUsername());
     }
 
     public Boolean validateToken(String token) {

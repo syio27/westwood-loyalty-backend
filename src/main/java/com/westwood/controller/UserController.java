@@ -2,7 +2,9 @@ package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.CreateUserRequest;
+import com.westwood.common.dto.PaymentSearchResultDto;
 import com.westwood.common.dto.UserDto;
+import com.westwood.service.PaymentService;
 import com.westwood.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,9 +20,11 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final PaymentService paymentService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, PaymentService paymentService) {
         this.userService = userService;
+        this.paymentService = paymentService;
     }
 
     @PostMapping
@@ -35,6 +39,17 @@ public class UserController {
     public ResponseEntity<UserDto> getUserById(@PathVariable UUID id) {
         UserDto user = userService.getUserById(id);
         return ResponseEntity.ok(user);
+    }
+
+    /**
+     * Get all transactions entered by a specific user
+     * Returns payment history with client info, amounts, bonuses, and status
+     */
+    @GetMapping("/{id}/transactions")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<List<PaymentSearchResultDto>> getUserTransactions(@PathVariable UUID id) {
+        List<PaymentSearchResultDto> transactions = paymentService.getTransactionsByUserId(id);
+        return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/email/{email}")
@@ -63,6 +78,54 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Lock a user account
+     * Prevents the user from logging in until unlocked
+     */
+    @PutMapping("/{id}/lock")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<UserDto> lockUser(@PathVariable UUID id) {
+        UserDto lockedUser = userService.lockUser(id);
+        return ResponseEntity.ok(lockedUser);
+    }
+
+    /**
+     * Unlock a user account (restore access)
+     * Can only unlock LOCKED users
+     */
+    @PutMapping("/{id}/unlock")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<UserDto> unlockUser(@PathVariable UUID id) {
+        UserDto unlockedUser = userService.unlockUser(id);
+        return ResponseEntity.ok(unlockedUser);
+    }
+
+    /**
+     * Delete all users with LOCKED status
+     * Returns the number of users deleted
+     */
+    @DeleteMapping("/locked")
+    @PreAuthorize("hasRole('SUDO')")
+    public ResponseEntity<DeleteLockedResponse> deleteLockedUsers() {
+        int deletedCount = userService.deleteLockedUsers();
+        return ResponseEntity.ok(new DeleteLockedResponse(deletedCount));
+    }
+
+    /**
+     * Response DTO for delete locked users endpoint
+     */
+    public static class DeleteLockedResponse {
+        private final int deletedCount;
+
+        public DeleteLockedResponse(int deletedCount) {
+            this.deletedCount = deletedCount;
+        }
+
+        public int getDeletedCount() {
+            return deletedCount;
+        }
     }
 }
 

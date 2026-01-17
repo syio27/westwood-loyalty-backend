@@ -47,6 +47,9 @@ public class User extends BaseEntity {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
+    @Column(name = "phone")
+    private String phone;
+
     @NotBlank
     @Column(name = "password", nullable = false)
     private String password;

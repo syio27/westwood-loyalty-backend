@@ -19,5 +19,25 @@ public interface UserService {
     UserDto updateUser(UUID id, CreateUserRequest request);
 
     void deleteUser(UUID id);
+
+    /**
+     * Lock a user account (restriction)
+     * @param id User UUID
+     * @return Updated UserDto
+     */
+    UserDto lockUser(UUID id);
+
+    /**
+     * Unlock a user account (restore access)
+     * @param id User UUID
+     * @return Updated UserDto
+     */
+    UserDto unlockUser(UUID id);
+
+    /**
+     * Delete all users with LOCKED status
+     * @return Number of users deleted
+     */
+    int deleteLockedUsers();
 }
 

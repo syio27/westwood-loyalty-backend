@@ -37,7 +37,7 @@ public class InvitationServiceImpl implements InvitationService {
     private final UserMapper userMapper;
     private final SecureRandom secureRandom;
 
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:http://localhost:4200}")
     private String frontendUrl;
 
     public InvitationServiceImpl(
@@ -66,13 +66,17 @@ public class InvitationServiceImpl implements InvitationService {
         // Create user in PENDING_ACTIVATION state
         User user = new User();
         user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAccountStatus(AccountStatus.PENDING_ACTIVATION);
         user.setActivationToken(activationToken);
         user.setActivationTokenExpiry(tokenExpiry);
         user.setActive(false); // User is not active until activation
-        user.addRole(Role.MANAGER); // Invited users are managers
+        
+        // Set role from request (validated by @Pattern in DTO)
+        Role userRole = Role.valueOf(request.getRole().toUpperCase());
+        user.addRole(userRole);
 
         // Set a temporary password (will be changed during activation)
         user.setPassword(passwordEncoder.encode(generateTemporaryPassword()));
@@ -81,7 +85,7 @@ public class InvitationServiceImpl implements InvitationService {
         logger.info("User invited: email={}", request.getEmail());
 
         // Send invitation email
-        String activationUrl = String.format("%s/activate?token=%s", frontendUrl, activationToken);
+        String activationUrl = String.format("%s/auth/activation?token=%s", frontendUrl, activationToken);
         emailService.sendInvitationEmail(
                 savedUser.getEmail(),
                 savedUser.getFirstName(),

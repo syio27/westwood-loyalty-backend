@@ -27,5 +27,12 @@ public interface PaymentService {
     PaymentTransactionDto createDraftPayment(CreateDraftPaymentRequest request, Long enteredByUserId);
 
     PaymentTransactionDto completePayment(String txId, CompletePaymentRequest request, Long enteredByUserId);
+
+    /**
+     * Get all transactions entered by a specific user
+     * @param userId User UUID
+     * @return List of payment transactions with bonus info
+     */
+    List<PaymentSearchResultDto> getTransactionsByUserId(UUID userId);
 }
 

@@ -8,6 +8,7 @@ import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.common.exception.TokenRefreshException;
 import com.westwood.common.exception.UnauthorizedException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -135,6 +136,16 @@ public class ExceptionHandlerConfig {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "Access denied: Insufficient permissions",
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -151,6 +162,16 @@ public class ExceptionHandlerConfig {
                 errors
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(Exception.class)

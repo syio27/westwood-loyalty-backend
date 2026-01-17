@@ -15,22 +15,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
-import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.security.web.AuthenticationEntryPoint;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -85,33 +76,10 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // CSRF configuration for cookie-based auth
-        CookieCsrfTokenRepository tokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName("_csrf");
-
-        // RequestMatcher to ignore OPTIONS requests and auth endpoints for CSRF
-        RequestMatcher csrfRequestMatcher = request -> {
-            String method = request.getMethod();
-            String path = request.getRequestURI();
-            
-            // Ignore OPTIONS requests (CORS preflight)
-            if (HttpMethod.OPTIONS.name().equals(method)) {
-                return true;
-            }
-            
-            // Ignore all auth endpoints
-            return path.startsWith("/api/v1/auth/") ||
-                   path.startsWith("/h2-console/");
-        };
-
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(tokenRepository)
-                        .csrfTokenRequestHandler(requestHandler)
-                        .ignoringRequestMatchers(csrfRequestMatcher)
-                )
+                // Disable CSRF for stateless API - protection is handled by SameSite cookies
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -120,19 +88,36 @@ public class SecurityConfig {
                             response.getWriter().write(
                                     String.format(
                                             "{\"status\":401,\"message\":\"%s\",\"timestamp\":\"%s\"}",
-                                            "Unauthorized: " + authException.getMessage(),
+                                            "Unauthorized",
+                                            java.time.LocalDateTime.now()
+                                    )
+                            );
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    String.format(
+                                            "{\"status\":403,\"message\":\"%s\",\"timestamp\":\"%s\"}",
+                                            "Access Denied: Insufficient permissions",
                                             java.time.LocalDateTime.now()
                                     )
                             );
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
+                        // Public endpoints
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/activate").permitAll()
-                        .requestMatchers("/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/me").authenticated()
                         .requestMatchers("/h2-console/**").permitAll()
+                        // Protected auth endpoints
+                        .requestMatchers("/api/v1/auth/**").authenticated()
+                        // User profile - only owner can edit (enforced in service layer)
+                        .requestMatchers("/api/v1/user/profile/**").authenticated()
+                        // User management
                         .requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN")
                         .requestMatchers("/api/v1/users/**").authenticated()
+                        // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())

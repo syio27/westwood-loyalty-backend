@@ -80,9 +80,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .map(authority -> authority.getAuthority().replace("ROLE_", ""))
                 .collect(Collectors.toSet());
 
+        User user = userDetails.getUser();
         return new AuthResponse(
-                userDetails.getUser().getId(),
-                userDetails.getUser().getEmail(),
+                user.getUuid(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
                 roles
         );
     }
@@ -127,8 +130,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .collect(Collectors.toSet());
 
         return new AuthResponse(
-                savedUser.getId(),
+                savedUser.getUuid(),
                 savedUser.getEmail(),
+                savedUser.getFirstName(),
+                savedUser.getLastName(),
                 roleNames
         );
     }
@@ -165,8 +170,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .collect(Collectors.toSet());
 
         return new AuthResponse(
-                user.getId(),
+                user.getUuid(),
                 user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
                 roles
         );
     }
@@ -203,8 +210,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .collect(Collectors.toSet());
 
         return new AuthResponse(
-                user.getId(),
+                user.getUuid(),
                 user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
                 roles
         );
     }

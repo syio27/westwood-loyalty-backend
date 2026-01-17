@@ -18,8 +18,10 @@ public class UserMapper {
         dto.setEmail(user.getEmail());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
+        dto.setPhone(user.getPhone());
         dto.setRoles(user.getRoles());
         dto.setActive(user.getActive());
+        dto.setAccountStatus(user.getAccountStatus());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
 
@@ -37,6 +39,7 @@ public class UserMapper {
         user.setEmail(dto.getEmail());
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
+        user.setPhone(dto.getPhone());
         user.setRoles(dto.getRoles());
         user.setActive(dto.getActive());
 
