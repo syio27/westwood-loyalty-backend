@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BonusAccruedAnalyticsDto {
-    private Long count; // Number of bonuses accrued
+    private BigDecimal amount; // Total amount of bonuses granted (in tenge)
     private BigDecimal changePercentage; // Can be positive or negative
     private String period; // "DAILY" or "MONTHLY"
 }

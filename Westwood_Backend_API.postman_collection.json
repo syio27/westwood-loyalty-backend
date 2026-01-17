@@ -2990,9 +2990,30 @@
 									"description": "Period: DAILY or MONTHLY"
 								}
 							]
-						}
+						},
+						"description": "Returns the total amount of bonuses granted for the specified period (DAILY or MONTHLY) with percentage change compared to the previous period.\n\n**Response:**\n- `amount` - Total amount of bonuses granted (in tenge), not the count of transactions\n- `changePercentage` - Percentage change compared to previous period\n- `period` - The period type (DAILY or MONTHLY)"
 					},
-					"response": []
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/analytics/bonuses/accrued?period=DAILY",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "analytics", "bonuses", "accrued"],
+									"query": [{"key": "period", "value": "DAILY"}]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"amount\": 2450.00,\n  \"changePercentage\": 15.50,\n  \"period\": \"DAILY\"\n}"
+						}
+					]
 				},
 				{
 					"name": "Get Daily Refunds Count",

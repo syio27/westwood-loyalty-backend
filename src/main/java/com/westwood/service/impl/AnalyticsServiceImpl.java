@@ -282,16 +282,15 @@ public class AnalyticsServiceImpl implements AnalyticsService {
             endOfPreviousPeriod = LocalDateTime.of(yesterday, LocalTime.MAX);
         }
 
-        Long currentCount = bonusEventRepository.countBonusesGrantedByDateRange(startOfCurrentPeriod, endOfCurrentPeriod);
-        if (currentCount == null) currentCount = 0L;
+        BigDecimal currentAmount = bonusEventRepository.sumBonusesGrantedByDateRange(startOfCurrentPeriod, endOfCurrentPeriod);
+        if (currentAmount == null) currentAmount = BigDecimal.ZERO;
 
-        Long previousCount = bonusEventRepository.countBonusesGrantedByDateRange(startOfPreviousPeriod, endOfPreviousPeriod);
-        if (previousCount == null) previousCount = 0L;
+        BigDecimal previousAmount = bonusEventRepository.sumBonusesGrantedByDateRange(startOfPreviousPeriod, endOfPreviousPeriod);
+        if (previousAmount == null) previousAmount = BigDecimal.ZERO;
 
-        BigDecimal changePercentage = calculatePercentageChange(
-                BigDecimal.valueOf(currentCount), BigDecimal.valueOf(previousCount));
+        BigDecimal changePercentage = calculatePercentageChange(currentAmount, previousAmount);
 
-        return new BonusAccruedAnalyticsDto(currentCount, changePercentage, period.toUpperCase());
+        return new BonusAccruedAnalyticsDto(currentAmount, changePercentage, period.toUpperCase());
     }
 
     @Override

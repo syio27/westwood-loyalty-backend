@@ -46,6 +46,9 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
     Long countBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal sumBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
+
     // Overall totals (all time)
     @Query("SELECT COUNT(bg) FROM BonusGranted bg")
     Long countAllBonusesGranted();
