@@ -375,17 +375,16 @@ public class ClientServiceImpl implements ClientService {
         Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? 
             Sort.Direction.ASC : Sort.Direction.DESC;
         
-        // Map sort field names to actual entity fields
+        // Map sort field names to actual database column names (snake_case for native query)
         switch (sortBy.toLowerCase()) {
             case "name":
                 return Sort.by(direction, "name", "surname");
             case "createdat":
-                return Sort.by(direction, "createdAt");
+                return Sort.by(direction, "created_at");
             case "lastvisit":
             default:
-                // For last visit, we'll sort by createdAt as a proxy
-                // In a real scenario, you might want to use a subquery or join
-                return Sort.by(direction, "createdAt");
+                // For last visit, we'll sort by created_at as a proxy
+                return Sort.by(direction, "created_at");
         }
     }
 }
