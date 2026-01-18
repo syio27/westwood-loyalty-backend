@@ -46,8 +46,8 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}  # 15 minutes
-  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}  # 7 days
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000} # 15 minutes
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000} # 7 days
 
 # Application Configuration
 app:
