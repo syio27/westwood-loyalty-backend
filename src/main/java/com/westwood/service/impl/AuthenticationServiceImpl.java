@@ -57,8 +57,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final EmailService emailService;
     private final SecureRandom secureRandom;
 
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:}")
     private String frontendUrl;
+    
+    @Value("${app.base-url:https://ww-reward-backend-401aa2c307ef.herokuapp.com}")
+    private String baseUrl;
 
     public AuthenticationServiceImpl(
             UserRepository userRepository,
@@ -255,8 +258,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         logger.info("Password reset token generated for user: {}", request.getEmail());
 
-        // Send password reset email
-        String resetUrl = String.format("%s/auth/reset-password?token=%s", frontendUrl, resetToken);
+        // Send password reset email - use baseUrl for same-origin setup
+        String appUrl = (frontendUrl != null && !frontendUrl.isEmpty()) ? frontendUrl : baseUrl;
+        String resetUrl = String.format("%s/auth/reset-password?token=%s", appUrl, resetToken);
         emailService.sendPasswordResetEmail(
                 user.getEmail(),
                 user.getFirstName(),

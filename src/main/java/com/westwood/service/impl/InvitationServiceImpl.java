@@ -37,8 +37,11 @@ public class InvitationServiceImpl implements InvitationService {
     private final UserMapper userMapper;
     private final SecureRandom secureRandom;
 
-    @Value("${app.frontend.url:http://localhost:4200}")
+    @Value("${app.frontend.url:}")
     private String frontendUrl;
+    
+    @Value("${app.base-url:https://ww-reward-backend-401aa2c307ef.herokuapp.com}")
+    private String baseUrl;
 
     public InvitationServiceImpl(
             UserRepository userRepository,
@@ -84,8 +87,9 @@ public class InvitationServiceImpl implements InvitationService {
         User savedUser = userRepository.save(user);
         logger.info("User invited: email={}", request.getEmail());
 
-        // Send invitation email
-        String activationUrl = String.format("%s/auth/activation?token=%s", frontendUrl, activationToken);
+        // Send invitation email - use baseUrl for same-origin setup
+        String appUrl = (frontendUrl != null && !frontendUrl.isEmpty()) ? frontendUrl : baseUrl;
+        String activationUrl = String.format("%s/auth/activation?token=%s", appUrl, activationToken);
         emailService.sendInvitationEmail(
                 savedUser.getEmail(),
                 savedUser.getFirstName(),

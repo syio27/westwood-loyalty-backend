@@ -20,8 +20,11 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:}")
     private String frontendUrl;
+    
+    @Value("${app.base-url:https://ww-reward-backend-401aa2c307ef.herokuapp.com}")
+    private String baseUrl;
 
     @Value("${app.mail.from-name:Westwood Team}")
     private String fromName;
@@ -40,8 +43,9 @@ public class EmailServiceImpl implements EmailService {
             helper.setTo(to);
             helper.setSubject("Welcome to Westwood - Activate Your Account");
 
+            String appUrl = (frontendUrl != null && !frontendUrl.isEmpty()) ? frontendUrl : baseUrl;
             String activationLink = activationUrl != null ? activationUrl : 
-                String.format("%s/activate?token=%s", frontendUrl, activationToken);
+                String.format("%s/auth/activation?token=%s", appUrl, activationToken);
 
             String htmlContent = buildInvitationEmailContent(firstName, activationLink, activationToken);
             helper.setText(htmlContent, true);
@@ -91,8 +95,9 @@ public class EmailServiceImpl implements EmailService {
             helper.setTo(to);
             helper.setSubject("Reset Your Westwood Password");
 
+            String appUrl = (frontendUrl != null && !frontendUrl.isEmpty()) ? frontendUrl : baseUrl;
             String resetLink = resetUrl != null ? resetUrl :
-                    String.format("%s/auth/reset-password?token=%s", frontendUrl, resetToken);
+                    String.format("%s/auth/reset-password?token=%s", appUrl, resetToken);
 
             String htmlContent = buildPasswordResetEmailContent(firstName, resetLink, resetToken);
             helper.setText(htmlContent, true);

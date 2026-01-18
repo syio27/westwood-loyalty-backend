@@ -49,6 +49,7 @@ jwt:
 
 # Application Configuration
 app:
+  base-url: https://ww-reward-backend-401aa2c307ef.herokuapp.com
   frontend:
     url: ${FRONTEND_URL:}
   mail:
