@@ -55,7 +55,7 @@ app:
     from-name: ${MAIL_FROM_NAME:Westwood Team}
   cookie:
     secure: true
-    same-site: None
+    same-site: "None"
 
 logging:
   level:
