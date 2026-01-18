@@ -282,12 +282,10 @@ public class PaymentServiceImpl implements PaymentService {
         String paymentType = (request.getPaymentType() != null && !request.getPaymentType().trim().isEmpty()) 
             ? request.getPaymentType() : "ALL";
 
-        // Prepare sorting
-        Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
+        // Prepare pagination (sorting is handled in the native query)
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
-            request.getSize() != null ? request.getSize() : 10,
-            sort
+            request.getSize() != null ? request.getSize() : 10
         );
 
         // Execute search
