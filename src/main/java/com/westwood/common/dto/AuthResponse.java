@@ -16,4 +16,15 @@ public class AuthResponse {
     private String firstName;
     private String lastName;
     private Set<String> roles;
+    private String accessToken;
+    private String refreshToken;
+    
+    // Constructor without tokens (backward compatibility)
+    public AuthResponse(UUID id, String email, String firstName, String lastName, Set<String> roles) {
+        this.id = id;
+        this.email = email;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.roles = roles;
+    }
 }

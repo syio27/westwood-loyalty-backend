@@ -1,5 +1,6 @@
 package com.westwood.config;
 
+import com.westwood.security.JwtAuthenticationFilter;
 import com.westwood.security.JwtCookieAuthenticationFilter;
 import com.westwood.security.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -30,15 +31,18 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
-            JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter) {
+            JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter,
+            JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtCookieAuthenticationFilter = jwtCookieAuthenticationFilter;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -110,6 +114,9 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Static resources and SPA routes (Angular frontend)
+                        .requestMatchers("/", "/index.html", "/favicon.ico").permitAll()
+                        .requestMatchers("/assets/**", "/*.js", "/*.css", "/*.map", "/*.json", "/*.png", "/*.ico").permitAll()
                         // Public endpoints
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/activate",
@@ -122,10 +129,16 @@ public class SecurityConfig {
                         // User management
                         .requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN")
                         .requestMatchers("/api/v1/users/**").authenticated()
+                        // SPA routes - forward to Angular (must be after API routes)
+                        .requestMatchers("/{path:^(?!api)(?!h2-console).*$}").permitAll()
+                        .requestMatchers("/{path:^(?!api)(?!h2-console).*$}/**").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
+                // Header-based JWT auth (for cross-domain Bearer token)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Cookie-based JWT auth (fallback for same-domain)
                 .addFilterBefore(jwtCookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // For H2 Console
