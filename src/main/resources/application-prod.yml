@@ -4,10 +4,8 @@ spring:
       on-profile: prod
   
   datasource:
-    url: ${DB_URL}
+    url: ${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
