@@ -115,7 +115,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Static resources and SPA routes (Angular frontend)
-                        .requestMatchers("/", "/index.html", "/favicon.ico").permitAll()
+                        .requestMatchers("/", "/index.html", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/assets/**", "/*.js", "/*.css", "/*.map", "/*.json", "/*.png", "/*.ico").permitAll()
                         // Public endpoints
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
@@ -129,9 +129,6 @@ public class SecurityConfig {
                         // User management
                         .requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN")
                         .requestMatchers("/api/v1/users/**").authenticated()
-                        // SPA routes - forward to Angular (must be after API routes)
-                        .requestMatchers("/{path:^(?!api)(?!h2-console).*$}").permitAll()
-                        .requestMatchers("/{path:^(?!api)(?!h2-console).*$}/**").permitAll()
                         // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
