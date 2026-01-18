@@ -30,6 +30,9 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
+    
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
@@ -60,6 +63,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
+                frontendUrl,
                 "http://localhost:3000", 
                 "http://localhost:4200", 
                 "http://localhost:8080"
