@@ -126,11 +126,36 @@ public class TemplateVariableResolver {
                 variables.put("clientBonusExp", "");
             }
         } else {
-            variables.put("clientGrantedBonus", "0");
-            // Find earliest expiring active bonus
-            LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
-            variables.put("clientBonusExp", earliestExpiration != null 
-                    ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+            // No paymentTxId provided - find the most recent bonus granted for this client
+            // This is useful for WELCOME_BONUS templates where there's no payment transaction
+            List<BonusGranted> recentBonuses = bonusEventRepository
+                    .findMostRecentBonusGrantedByClientId(client.getId());
+            
+            if (!recentBonuses.isEmpty()) {
+                BonusGranted mostRecentBonus = recentBonuses.get(0);
+                if (mostRecentBonus.getBonusAmount() != null) {
+                    BigDecimal bonusAmount = mostRecentBonus.getBonusAmount();
+                    variables.put("clientGrantedBonus", bonusAmount.setScale(2, java.math.RoundingMode.HALF_UP).toString());
+                    
+                    if (mostRecentBonus.getExpiresAt() != null) {
+                        variables.put("clientBonusExp", mostRecentBonus.getExpiresAt().format(DATETIME_FORMATTER));
+                    } else {
+                        LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
+                        variables.put("clientBonusExp", earliestExpiration != null 
+                                ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                    }
+                } else {
+                    variables.put("clientGrantedBonus", "0");
+                    LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
+                    variables.put("clientBonusExp", earliestExpiration != null 
+                            ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                }
+            } else {
+                variables.put("clientGrantedBonus", "0");
+                LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
+                variables.put("clientBonusExp", earliestExpiration != null 
+                        ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+            }
         }
 
         return variables;

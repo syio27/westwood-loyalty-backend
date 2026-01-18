@@ -50,6 +50,8 @@ app:
     url: ${FRONTEND_URL:http://localhost:4200}
   mail:
     from-name: ${MAIL_FROM_NAME:Westwood Team}
+  registration:
+    enabled: true  # Allow registration in dev
 
 logging:
   level:

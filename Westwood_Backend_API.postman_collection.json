@@ -3894,6 +3894,98 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Backoffice - Tags",
+			"description": "Backoffice endpoints for managing tags. Requires SUDO or ADMIN role.",
+			"item": [
+				{
+					"name": "Get All Tags",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags"
+							]
+						},
+						"description": "Get all tags with their client count. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tag by Name",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags/{{tagName}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags",
+								"{{tagName}}"
+							]
+						},
+						"description": "Get a specific tag by its name. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete All Tags",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags"
+							]
+						},
+						"description": "Delete all tags from the system. Requires SUDO or ADMIN role. WARNING: This will remove all tags from all clients."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tag by Name",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/backoffice/tags/{{tagName}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"backoffice",
+								"tags",
+								"{{tagName}}"
+							]
+						},
+						"description": "Delete a specific tag by its name. Requires SUDO or ADMIN role."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"variable": [
@@ -3954,6 +4046,11 @@
 		},
 		{
 			"key": "resetToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "tagName",
 			"value": "",
 			"type": "string"
 		}

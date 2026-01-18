@@ -43,6 +43,10 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT bu FROM BonusUsed bu JOIN FETCH bu.paymentTransaction pt WHERE pt.id = :paymentId")
     List<BonusUsed> findBonusUsedByPaymentId(@Param("paymentId") Long paymentId);
 
+    // Find most recent bonus granted for a client (for welcome bonus etc.)
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId ORDER BY bg.createdAt DESC")
+    List<BonusGranted> findMostRecentBonusGrantedByClientId(@Param("clientId") Long clientId);
+
     // Analytics queries
     @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate " +
            "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")

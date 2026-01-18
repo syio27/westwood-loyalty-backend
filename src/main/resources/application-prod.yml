@@ -54,6 +54,8 @@ app:
     url: ${FRONTEND_URL:}
   mail:
     from-name: ${MAIL_FROM_NAME:Westwood Team}
+  registration:
+    enabled: false  # Disable registration in prod - users should only be invited
   cookie:
     secure: true
     same-site: "Strict"

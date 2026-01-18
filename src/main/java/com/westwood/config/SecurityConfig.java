@@ -33,6 +33,9 @@ public class SecurityConfig {
     
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
+    
+    @org.springframework.beans.factory.annotation.Value("${app.registration.enabled:true}")
+    private boolean registrationEnabled;
 
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
@@ -109,22 +112,29 @@ public class SecurityConfig {
                             );
                         })
                 )
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
                         // Public API endpoints
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Note: /api/v1/auth/register removed - app is private, users should only be invited via /activate
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/activate",
-                                "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
+                        auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                        
+                        // Auth endpoints - register is only public in dev (controlled by app.registration.enabled)
+                        if (registrationEnabled) {
+                            auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/activate",
+                                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll();
+                        } else {
+                            auth.requestMatchers("/api/v1/auth/login", "/api/v1/auth/activate",
+                                    "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll();
+                        }
+                        
+                        auth.requestMatchers("/h2-console/**").permitAll();
                         // Protected API endpoints
-                        .requestMatchers("/api/v1/auth/**").authenticated()
-                        .requestMatchers("/api/v1/user/profile/**").authenticated()
-                        .requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN")
-                        .requestMatchers("/api/v1/users/**").authenticated()
-                        .requestMatchers("/api/**").authenticated()
+                        auth.requestMatchers("/api/v1/auth/**").authenticated();
+                        auth.requestMatchers("/api/v1/user/profile/**").authenticated();
+                        auth.requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN");
+                        auth.requestMatchers("/api/v1/users/**").authenticated();
+                        auth.requestMatchers("/api/**").authenticated();
                         // Everything else (Angular SPA routes, static files) - permit all
-                        .anyRequest().permitAll()
-                )
+                        auth.anyRequest().permitAll();
+                })
                 .authenticationProvider(authenticationProvider())
                 // Cookie-based JWT auth
                 .addFilterBefore(jwtCookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

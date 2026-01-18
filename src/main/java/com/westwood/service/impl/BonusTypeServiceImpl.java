@@ -127,9 +127,9 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         switch (normalizedFlow) {
             case "new_payment":
                 return BonusTypeEnum.BASIC_CASHBACK;
+            case "create_client":
+                return BonusTypeEnum.WELCOME;
             // Add more flow mappings here as needed
-            // case "welcome":
-            //     return BonusTypeEnum.WELCOME;
             // case "birthday":
             //     return BonusTypeEnum.BIRTHDAY;
             // case "referral":
