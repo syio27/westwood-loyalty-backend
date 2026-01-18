@@ -2054,6 +2054,88 @@
 					"response": []
 				},
 				{
+					"name": "Delete Draft Payment",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payments/draft/{{paymentTxId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payments",
+								"draft",
+								"{{paymentTxId}}"
+							]
+						},
+						"description": "Deletes a pending draft payment. Only payments with PENDING status can be deleted. This is useful for canceling draft payments that were created but never completed.\n\n**Requirements:**\n- Payment must exist\n- Payment must have PENDING status\n- If payment is COMPLETED or has any other status, deletion will be rejected\n\n**Response:** Returns 204 No Content on successful deletion."
+					},
+					"response": [
+						{
+							"name": "Success",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/payments/draft/{{paymentTxId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "payments", "draft", "{{paymentTxId}}"]
+								}
+							},
+							"status": "No Content",
+							"code": 204,
+							"_postman_previewlanguage": "json",
+							"header": [],
+							"cookie": [],
+							"body": ""
+						},
+						{
+							"name": "Not Found",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/payments/draft/{{paymentTxId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "payments", "draft", "{{paymentTxId}}"]
+								}
+							},
+							"status": "Not Found",
+							"code": 404,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 404,\n  \"message\": \"Payment with txId 'PTX-24-ABCDE' not found\",\n  \"timestamp\": \"2024-01-20T14:45:00\"\n}"
+						},
+						{
+							"name": "Bad Request - Not PENDING",
+							"originalRequest": {
+								"method": "DELETE",
+								"header": [{"key": "Authorization", "value": "Bearer {{authToken}}"}],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/payments/draft/{{paymentTxId}}",
+									"host": ["{{baseUrl}}"],
+									"path": ["api", "v1", "payments", "draft", "{{paymentTxId}}"]
+								}
+							},
+							"status": "Bad Request",
+							"code": 400,
+							"_postman_previewlanguage": "json",
+							"header": [{"key": "Content-Type", "value": "application/json"}],
+							"cookie": [],
+							"body": "{\n  \"status\": 400,\n  \"message\": \"Cannot delete payment with status: COMPLETED. Only PENDING (draft) payments can be deleted.\",\n  \"timestamp\": \"2024-01-20T14:45:00\"\n}"
+						}
+					]
+				},
+				{
 					"name": "Get Payment by Transaction ID",
 					"request": {
 						"method": "GET",

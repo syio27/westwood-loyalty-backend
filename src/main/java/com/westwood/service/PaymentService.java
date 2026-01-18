@@ -28,6 +28,8 @@ public interface PaymentService {
 
     PaymentTransactionDto completePayment(String txId, CompletePaymentRequest request, Long enteredByUserId);
 
+    void deleteDraftPayment(String txId);
+
     /**
      * Get all transactions entered by a specific user
      * @param userId User UUID

@@ -529,6 +529,23 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMapper.toDto(savedPayment);
     }
 
+    @Override
+    @Transactional
+    public void deleteDraftPayment(String txId) {
+        PaymentTransaction payment = paymentRepository.findByTxId(txId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + txId + "' not found"));
+
+        // Only allow deleting PENDING payments (draft payments)
+        if (payment.getStatus() != PaymentTransaction.PaymentStatus.PENDING) {
+            throw new IllegalStateException("Cannot delete payment with status: " + payment.getStatus() + 
+                ". Only PENDING (draft) payments can be deleted.");
+        }
+
+        // Delete the draft payment
+        // Since draft payments don't have bonuses or events associated, safe to delete directly
+        paymentRepository.delete(payment);
+    }
+
     private BigDecimal calculateClientBonusBalance(Long clientId) {
         List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtAsc(clientId);
         BigDecimal balance = BigDecimal.ZERO;

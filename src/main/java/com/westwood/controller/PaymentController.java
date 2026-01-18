@@ -98,6 +98,13 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/draft/{txId}")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<Void> deleteDraftPayment(@PathVariable String txId) {
+        paymentService.deleteDraftPayment(txId);
+        return ResponseEntity.noContent().build();
+    }
+
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {
