@@ -1,5 +1,6 @@
 package com.westwood.common.dto;
 
+import com.westwood.common.validation.ClientTypeValidation;
 import com.westwood.common.validation.PhoneNumber;
 import com.westwood.domain.ClientType;
 import jakarta.validation.constraints.NotBlank;
@@ -12,19 +13,18 @@ import java.util.Set;
 import java.util.UUID;
 
 @Data
+@ClientTypeValidation
 public class CreateClientRequest {
 
     @NotBlank(message = "Phone is required")
     @PhoneNumber
     private String phone;
 
-    @NotBlank(message = "Name is required")
     @Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
     private String name;
 
-    @NotBlank(message = "Surname is required")
     @Size(min = 2, max = 100, message = "Surname must be between 2 and 100 characters")
-    private String surname;
+    private String surname; // Optional for INDIVIDUAL (validated only if provided), not used for BUSINESS
 
     private LocalDate dateOfBirth;
 

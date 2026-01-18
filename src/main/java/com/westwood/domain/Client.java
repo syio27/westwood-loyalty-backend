@@ -39,9 +39,8 @@ public class Client extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @NotBlank
     @Size(min = 2, max = 100)
-    @Column(name = "surname", nullable = false)
+    @Column(name = "surname", nullable = true)
     private String surname;
 
     @Column(name = "date_of_birth")
