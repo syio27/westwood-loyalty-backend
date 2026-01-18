@@ -112,7 +112,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public API endpoints
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/activate",
+                        // Note: /api/v1/auth/register removed - app is private, users should only be invited via /activate
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/activate",
                                 "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         // Protected API endpoints

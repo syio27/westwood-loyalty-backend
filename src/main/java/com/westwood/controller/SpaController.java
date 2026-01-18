@@ -57,7 +57,7 @@ public class SpaController implements ErrorController {
         "/home",
         "/auth/**",
         "/login",
-        "/register",
+        // "/register" - disabled, app is private, users should only be invited
         "/users",
         "/users/**",
         "/clients",
