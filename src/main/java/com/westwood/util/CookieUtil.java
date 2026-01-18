@@ -3,6 +3,8 @@ package com.westwood.util;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -10,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CookieUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(CookieUtil.class);
 
     @Value("${app.cookie.domain:}")
     private String cookieDomain;
@@ -24,6 +28,8 @@ public class CookieUtil {
     private static final String REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 
     public void addAccessTokenCookie(HttpServletResponse response, String token, Long maxAge) {
+        log.info("Setting access token cookie with sameSite={}, secure={}, domain={}", 
+                cookieSameSite, cookieSecure, cookieDomain.isEmpty() ? "null" : cookieDomain);
         ResponseCookie cookie = ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, token)
                 .httpOnly(true)
                 .secure(cookieSecure)
@@ -32,6 +38,7 @@ public class CookieUtil {
                 .maxAge(maxAge)
                 .domain(cookieDomain.isEmpty() ? null : cookieDomain)
                 .build();
+        log.info("Cookie header: {}", cookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
@@ -74,11 +81,15 @@ public class CookieUtil {
     public String getAccessTokenFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
+            log.debug("Received {} cookies", cookies.length);
             for (Cookie cookie : cookies) {
+                log.debug("Cookie: {}={}", cookie.getName(), cookie.getName().equals(ACCESS_TOKEN_COOKIE_NAME) ? "[PRESENT]" : cookie.getValue());
                 if (ACCESS_TOKEN_COOKIE_NAME.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
+        } else {
+            log.debug("No cookies received in request");
         }
         return null;
     }

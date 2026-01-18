@@ -61,4 +61,6 @@ logging:
   level:
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    com.westwood.util.CookieUtil: DEBUG
+    com.westwood.security.JwtCookieAuthenticationFilter: DEBUG
 
