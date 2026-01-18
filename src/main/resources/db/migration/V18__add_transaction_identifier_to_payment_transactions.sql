@@ -11,15 +11,13 @@ ADD COLUMN tx_id VARCHAR(12);
 
 -- Set default values for existing records (if any)
 -- For existing records, we'll use a placeholder based on ID to ensure uniqueness
--- Note: This uses database-specific functions, but should work for both H2 and PostgreSQL
--- For H2: YEAR() function, MOD() function, LPAD() function
--- For PostgreSQL: EXTRACT(YEAR FROM ...), MOD(), LPAD()
+-- Using EXTRACT(YEAR FROM ...) which works in both H2 and PostgreSQL
 UPDATE payment_transactions 
 SET 
-    transaction_year = CAST(YEAR(created_at) AS INTEGER) % 100,
+    transaction_year = CAST(EXTRACT(YEAR FROM created_at) AS INTEGER) % 100,
     transaction_number = id,
     tx_id = 'PTX-' || 
-        LPAD(CAST(CAST(YEAR(created_at) AS INTEGER) % 100 AS VARCHAR), 2, '0') || '-' || 
+        LPAD(CAST(CAST(EXTRACT(YEAR FROM created_at) AS INTEGER) % 100 AS VARCHAR), 2, '0') || '-' || 
         LPAD(CAST(id AS VARCHAR), 5, '0')
 WHERE transaction_year IS NULL;
 
