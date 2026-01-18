@@ -102,17 +102,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .collect(Collectors.toSet());
 
         User user = userDetails.getUser();
-        AuthResponse authResponse = new AuthResponse(
+        return new AuthResponse(
                 user.getUuid(),
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
                 roles
         );
-        // Include tokens in response body for Bearer token auth (cross-domain support)
-        authResponse.setAccessToken(accessToken);
-        authResponse.setRefreshToken(refreshToken.getToken());
-        return authResponse;
     }
 
     @Override
@@ -154,17 +150,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .map(authority -> authority.getAuthority().replace("ROLE_", ""))
                 .collect(Collectors.toSet());
 
-        AuthResponse authResponse = new AuthResponse(
+        return new AuthResponse(
                 savedUser.getUuid(),
                 savedUser.getEmail(),
                 savedUser.getFirstName(),
                 savedUser.getLastName(),
                 roleNames
         );
-        // Include tokens in response body for Bearer token auth (cross-domain support)
-        authResponse.setAccessToken(accessToken);
-        authResponse.setRefreshToken(refreshToken.getToken());
-        return authResponse;
     }
 
     @Override

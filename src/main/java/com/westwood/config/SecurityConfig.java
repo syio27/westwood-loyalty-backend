@@ -1,6 +1,5 @@
 package com.westwood.config;
 
-import com.westwood.security.JwtAuthenticationFilter;
 import com.westwood.security.JwtCookieAuthenticationFilter;
 import com.westwood.security.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -31,18 +30,15 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
     public SecurityConfig(
             UserDetailsServiceImpl userDetailsService,
-            JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter,
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+            JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtCookieAuthenticationFilter = jwtCookieAuthenticationFilter;
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
@@ -114,28 +110,22 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Static resources and SPA routes (Angular frontend)
-                        .requestMatchers("/", "/index.html", "/favicon.ico", "/error").permitAll()
-                        .requestMatchers("/assets/**", "/*.js", "/*.css", "/*.map", "/*.json", "/*.png", "/*.ico").permitAll()
-                        // Public endpoints
+                        // Public API endpoints
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/activate",
                                 "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        // Protected auth endpoints
+                        // Protected API endpoints
                         .requestMatchers("/api/v1/auth/**").authenticated()
-                        // User profile - only owner can edit (enforced in service layer)
                         .requestMatchers("/api/v1/user/profile/**").authenticated()
-                        // User management
                         .requestMatchers("/api/v1/users/invite").hasAnyRole("SUDO", "ADMIN")
                         .requestMatchers("/api/v1/users/**").authenticated()
-                        // All other endpoints require authentication
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/**").authenticated()
+                        // Everything else (Angular SPA routes, static files) - permit all
+                        .anyRequest().permitAll()
                 )
                 .authenticationProvider(authenticationProvider())
-                // Header-based JWT auth (for cross-domain Bearer token)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                // Cookie-based JWT auth (fallback for same-domain)
+                // Cookie-based JWT auth
                 .addFilterBefore(jwtCookieAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         // For H2 Console
