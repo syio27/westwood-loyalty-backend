@@ -48,18 +48,30 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     @Query("SELECT COUNT(c) FROM Client c")
     Long countAllClients();
 
-    // Search clients with pagination and filters
-    @Query("SELECT DISTINCT c FROM Client c " +
+    // Search clients with pagination and filters (native query to avoid Hibernate escape clause issues)
+    @Query(value = "SELECT DISTINCT c.* FROM clients c " +
             "WHERE " +
-            "(:name IS NULL OR :name = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :name, '%')) OR LOWER(c.surname) LIKE LOWER(CONCAT('%', :name, '%'))) " +
-            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE CONCAT('%', :phone, '%')) " +
-            "AND (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER(CONCAT('%', :email, '%'))) " +
-            "AND (:clientType IS NULL OR c.clientType = :clientType) " +
-            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM c.tags t WHERE t.name IN :tagNames)) " +
+            "(:name IS NULL OR :name = '' OR LOWER(c.name) LIKE LOWER('%' || :name || '%') OR LOWER(c.surname) LIKE LOWER('%' || :name || '%')) " +
+            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE '%' || :phone || '%') " +
+            "AND (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER('%' || :email || '%')) " +
+            "AND (:clientType IS NULL OR c.client_type = :clientType) " +
+            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct JOIN tags t ON t.id = ct.tag_id WHERE t.name IN (:tagNames) AND ct.client_id = c.id)) " +
             "AND (:lastVisitFrom IS NULL OR " +
-            "   (SELECT MAX(p.createdAt) FROM PaymentTransaction p WHERE p.client.id = c.id AND p.status = 'COMPLETED') >= :lastVisitFrom) " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= :lastVisitFrom) " +
             "AND (:lastVisitTo IS NULL OR " +
-            "   (SELECT MAX(p.createdAt) FROM PaymentTransaction p WHERE p.client.id = c.id AND p.status = 'COMPLETED') <= :lastVisitTo)")
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= :lastVisitTo)",
+            countQuery = "SELECT COUNT(DISTINCT c.id) FROM clients c " +
+            "WHERE " +
+            "(:name IS NULL OR :name = '' OR LOWER(c.name) LIKE LOWER('%' || :name || '%') OR LOWER(c.surname) LIKE LOWER('%' || :name || '%')) " +
+            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE '%' || :phone || '%') " +
+            "AND (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER('%' || :email || '%')) " +
+            "AND (:clientType IS NULL OR c.client_type = :clientType) " +
+            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct JOIN tags t ON t.id = ct.tag_id WHERE t.name IN (:tagNames) AND ct.client_id = c.id)) " +
+            "AND (:lastVisitFrom IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= :lastVisitFrom) " +
+            "AND (:lastVisitTo IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= :lastVisitTo)",
+            nativeQuery = true)
     Page<Client> searchClientsWithFilters(
             @Param("name") String name,
             @Param("phone") String phone,
