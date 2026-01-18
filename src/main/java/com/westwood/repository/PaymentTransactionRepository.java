@@ -92,21 +92,33 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     List<Object[]> getDailyRevenueAndTransactionsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                           @Param("endDate") java.time.LocalDateTime endDate);
 
-    // Search payments with pagination and filters
-    @Query("SELECT DISTINCT p FROM PaymentTransaction p " +
-            "JOIN FETCH p.client c " +
-            "LEFT JOIN FETCH p.enteredBy u " +
-            "LEFT JOIN FETCH p.refundedPayment rp " +
+    // Search payments with pagination and filters (native query to avoid Hibernate escape clause issues)
+    @Query(value = "SELECT DISTINCT p.* FROM payment_transactions p " +
+            "JOIN clients c ON c.id = p.client_id " +
             "WHERE " +
-            "(:paymentId IS NULL OR :paymentId = '' OR p.txId LIKE CONCAT('%', :paymentId, '%')) " +
-            "AND (:clientName IS NULL OR :clientName = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :clientName, '%')) OR LOWER(c.surname) LIKE LOWER(CONCAT('%', :clientName, '%'))) " +
-            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE CONCAT('%', :phone, '%')) " +
-            "AND (:periodFrom IS NULL OR p.createdAt >= :periodFrom) " +
-            "AND (:periodTo IS NULL OR p.createdAt <= :periodTo) " +
-            "AND (:paymentType IS NULL OR :paymentType = 'ALL' OR " +
-            "   (:paymentType = 'PAID' AND p.status = 'COMPLETED') OR " +
-            "   (:paymentType = 'REFUND' AND p.status = 'REFUNDED')) " +
-            "AND p.status != 'REFUND'") // Exclude internal REFUND status transactions
+            "(CAST(:paymentId AS VARCHAR) IS NULL OR CAST(:paymentId AS VARCHAR) = '' OR p.tx_id LIKE '%' || CAST(:paymentId AS VARCHAR) || '%') " +
+            "AND (CAST(:clientName AS VARCHAR) IS NULL OR CAST(:clientName AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%')) " +
+            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
+            "AND (CAST(:periodFrom AS TIMESTAMP) IS NULL OR p.created_at >= CAST(:periodFrom AS TIMESTAMP)) " +
+            "AND (CAST(:periodTo AS TIMESTAMP) IS NULL OR p.created_at <= CAST(:periodTo AS TIMESTAMP)) " +
+            "AND (CAST(:paymentType AS VARCHAR) IS NULL OR CAST(:paymentType AS VARCHAR) = 'ALL' OR " +
+            "   (CAST(:paymentType AS VARCHAR) = 'PAID' AND p.status = 'COMPLETED') OR " +
+            "   (CAST(:paymentType AS VARCHAR) = 'REFUND' AND p.status = 'REFUNDED')) " +
+            "AND p.status != 'REFUND' " +
+            "ORDER BY p.created_at DESC",
+            countQuery = "SELECT COUNT(DISTINCT p.id) FROM payment_transactions p " +
+            "JOIN clients c ON c.id = p.client_id " +
+            "WHERE " +
+            "(CAST(:paymentId AS VARCHAR) IS NULL OR CAST(:paymentId AS VARCHAR) = '' OR p.tx_id LIKE '%' || CAST(:paymentId AS VARCHAR) || '%') " +
+            "AND (CAST(:clientName AS VARCHAR) IS NULL OR CAST(:clientName AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%')) " +
+            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
+            "AND (CAST(:periodFrom AS TIMESTAMP) IS NULL OR p.created_at >= CAST(:periodFrom AS TIMESTAMP)) " +
+            "AND (CAST(:periodTo AS TIMESTAMP) IS NULL OR p.created_at <= CAST(:periodTo AS TIMESTAMP)) " +
+            "AND (CAST(:paymentType AS VARCHAR) IS NULL OR CAST(:paymentType AS VARCHAR) = 'ALL' OR " +
+            "   (CAST(:paymentType AS VARCHAR) = 'PAID' AND p.status = 'COMPLETED') OR " +
+            "   (CAST(:paymentType AS VARCHAR) = 'REFUND' AND p.status = 'REFUNDED')) " +
+            "AND p.status != 'REFUND'",
+            nativeQuery = true)
     Page<PaymentTransaction> searchPaymentsWithFilters(
             @Param("paymentId") String paymentId,
             @Param("clientName") String clientName,
