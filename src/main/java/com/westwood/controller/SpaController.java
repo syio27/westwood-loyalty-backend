@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * SPA Controller - Serves Angular's index.html for client-side routing
+ * Handles all non-API routes to enable Angular Router to work with direct URLs
  */
 @Controller
 public class SpaController implements ErrorController {
@@ -41,11 +42,37 @@ public class SpaController implements ErrorController {
 
     /**
      * Handle all errors (404s) by serving Angular app
-     * This enables Angular's client-side routing
      */
     @GetMapping(value = "/error", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     public String handleError() throws IOException {
+        return getIndexHtml();
+    }
+
+    /**
+     * Handle all Angular routes directly
+     * This catches routes like /home, /login, /users, /bonus-program, etc.
+     */
+    @GetMapping(value = {
+        "/home",
+        "/auth/**",
+        "/login",
+        "/register",
+        "/users",
+        "/users/**",
+        "/clients",
+        "/clients/**",
+        "/bonus-program",
+        "/bonus-program/**",
+        "/payments",
+        "/payments/**",
+        "/profile",
+        "/profile/**",
+        "/communications",
+        "/communications/**"
+    }, produces = MediaType.TEXT_HTML_VALUE)
+    @ResponseBody
+    public String forwardToAngular() throws IOException {
         return getIndexHtml();
     }
 }
