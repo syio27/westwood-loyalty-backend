@@ -285,15 +285,13 @@ public class ClientServiceImpl implements ClientService {
         String phone = (request.getPhone() != null && request.getPhone().trim().isEmpty()) ? null : request.getPhone();
         String email = (request.getEmail() != null && request.getEmail().trim().isEmpty()) ? null : request.getEmail();
         
-        // Normalize empty tag list to null
-        List<String> tagNames = (request.getTags() != null && request.getTags().isEmpty()) ? null : request.getTags();
+        // Convert ClientType enum to String for native query
+        String clientType = request.getClientType() != null ? request.getClientType().name() : null;
 
-        // Prepare sorting
-        Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
+        // Prepare pagination (sorting is handled in the native query)
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
-            request.getSize() != null ? request.getSize() : 10,
-            sort
+            request.getSize() != null ? request.getSize() : 10
         );
 
         // Execute search
@@ -301,8 +299,7 @@ public class ClientServiceImpl implements ClientService {
             name,
             phone,
             email,
-            request.getClientType(),
-            tagNames,
+            clientType,
             lastVisitFrom,
             lastVisitTo,
             pageable

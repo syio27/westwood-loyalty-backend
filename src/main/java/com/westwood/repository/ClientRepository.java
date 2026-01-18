@@ -51,33 +51,31 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     // Search clients with pagination and filters (native query to avoid Hibernate escape clause issues)
     @Query(value = "SELECT DISTINCT c.* FROM clients c " +
             "WHERE " +
-            "(:name IS NULL OR :name = '' OR LOWER(c.name) LIKE LOWER('%' || :name || '%') OR LOWER(c.surname) LIKE LOWER('%' || :name || '%')) " +
-            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE '%' || :phone || '%') " +
-            "AND (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER('%' || :email || '%')) " +
-            "AND (:clientType IS NULL OR c.client_type = :clientType) " +
-            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct JOIN tags t ON t.id = ct.tag_id WHERE t.name IN (:tagNames) AND ct.client_id = c.id)) " +
-            "AND (:lastVisitFrom IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= :lastVisitFrom) " +
-            "AND (:lastVisitTo IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= :lastVisitTo)",
+            "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
+            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
+            "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
+            "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
+            "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
+            "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP)) " +
+            "ORDER BY c.created_at DESC",
             countQuery = "SELECT COUNT(DISTINCT c.id) FROM clients c " +
             "WHERE " +
-            "(:name IS NULL OR :name = '' OR LOWER(c.name) LIKE LOWER('%' || :name || '%') OR LOWER(c.surname) LIKE LOWER('%' || :name || '%')) " +
-            "AND (:phone IS NULL OR :phone = '' OR c.phone LIKE '%' || :phone || '%') " +
-            "AND (:email IS NULL OR :email = '' OR LOWER(c.email) LIKE LOWER('%' || :email || '%')) " +
-            "AND (:clientType IS NULL OR c.client_type = :clientType) " +
-            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct JOIN tags t ON t.id = ct.tag_id WHERE t.name IN (:tagNames) AND ct.client_id = c.id)) " +
-            "AND (:lastVisitFrom IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= :lastVisitFrom) " +
-            "AND (:lastVisitTo IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= :lastVisitTo)",
+            "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
+            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
+            "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
+            "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
+            "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
+            "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
+            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP))",
             nativeQuery = true)
     Page<Client> searchClientsWithFilters(
             @Param("name") String name,
             @Param("phone") String phone,
             @Param("email") String email,
-            @Param("clientType") ClientType clientType,
-            @Param("tagNames") List<String> tagNames,
+            @Param("clientType") String clientType,
             @Param("lastVisitFrom") LocalDateTime lastVisitFrom,
             @Param("lastVisitTo") LocalDateTime lastVisitTo,
             Pageable pageable);
