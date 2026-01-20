@@ -5,6 +5,7 @@ import com.westwood.domain.ClientType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,7 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface ClientRepository extends JpaRepository<Client, Long> {
+public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecificationExecutor<Client> {
 
     Optional<Client> findByUuid(java.util.UUID uuid);
 
@@ -47,44 +48,5 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     @Query("SELECT COUNT(c) FROM Client c")
     Long countAllClients();
 
-    // Search clients with pagination and filters (native query to avoid Hibernate escape clause issues)
-    // Note: Sorting is fixed to created_at DESC for simplicity - dynamic sorting can be added later if needed
-    @Query(value = "SELECT DISTINCT c.* FROM clients c " +
-            "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
-            "LEFT JOIN tags t ON t.id = ct.tag_id " +
-            "WHERE " +
-            "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
-            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
-            "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
-            "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
-            "AND (:tagNames = '' OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name = ANY(string_to_array(:tagNames, ',')) AND ct2.client_id = c.id)) " +
-            "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
-            "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP)) " +
-            "ORDER BY c.created_at DESC",
-            countQuery = "SELECT COUNT(DISTINCT c.id) FROM clients c " +
-            "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
-            "LEFT JOIN tags t ON t.id = ct.tag_id " +
-            "WHERE " +
-            "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
-            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
-            "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
-            "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
-            "AND (:tagNames = '' OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name = ANY(string_to_array(:tagNames, ',')) AND ct2.client_id = c.id)) " +
-            "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
-            "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
-            "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP))",
-            nativeQuery = true)
-    Page<Client> searchClientsWithFilters(
-            @Param("name") String name,
-            @Param("phone") String phone,
-            @Param("email") String email,
-            @Param("clientType") String clientType,
-            @Param("tagNames") String tagNames,
-            @Param("lastVisitFrom") LocalDateTime lastVisitFrom,
-            @Param("lastVisitTo") LocalDateTime lastVisitTo,
-            Pageable pageable);
 }
 

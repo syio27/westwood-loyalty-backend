@@ -263,41 +263,22 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PagedPaymentSearchResponse searchPayments(PaymentSearchRequest request) {
-        // Prepare date range for period filter
-        LocalDateTime periodFrom = null;
-        LocalDateTime periodTo = null;
-        if (request.getPeriodFrom() != null) {
-            periodFrom = LocalDateTime.of(request.getPeriodFrom(), LocalTime.MIN);
-        }
-        if (request.getPeriodTo() != null) {
-            periodTo = LocalDateTime.of(request.getPeriodTo(), LocalTime.MAX);
-        }
+        // Build specification from request
+        org.springframework.data.jpa.domain.Specification<PaymentTransaction> spec = 
+            com.westwood.repository.specification.PaymentTransactionSpecification.buildSpecification(request);
 
-        // Normalize empty strings to null
-        String paymentId = (request.getPaymentId() != null && request.getPaymentId().trim().isEmpty()) ? null : request.getPaymentId();
-        String clientName = (request.getClientName() != null && request.getClientName().trim().isEmpty()) ? null : request.getClientName();
-        String phone = (request.getPhone() != null && request.getPhone().trim().isEmpty()) ? null : request.getPhone();
+        // Prepare sorting
+        Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
         
-        // Normalize payment type: null or empty means "ALL"
-        String paymentType = (request.getPaymentType() != null && !request.getPaymentType().trim().isEmpty()) 
-            ? request.getPaymentType() : "ALL";
-
-        // Prepare pagination (sorting is handled in the native query)
+        // Prepare pagination with sorting
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
-            request.getSize() != null ? request.getSize() : 10
+            request.getSize() != null ? request.getSize() : 10,
+            sort
         );
 
-        // Execute search
-        Page<PaymentTransaction> paymentPage = paymentRepository.searchPaymentsWithFilters(
-            paymentId,
-            clientName,
-            phone,
-            periodFrom,
-            periodTo,
-            paymentType,
-            pageable
-        );
+        // Execute search using Specification
+        Page<PaymentTransaction> paymentPage = paymentRepository.findAll(spec, pageable);
 
         // Convert to DTOs
         List<PaymentSearchResultDto> content = paymentPage.getContent().stream()
@@ -578,5 +559,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .map(this::toSearchResultDto)
                 .collect(Collectors.toList());
     }
+
 }
 

@@ -16,6 +16,7 @@ import com.westwood.util.mapper.ClientMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -269,49 +270,22 @@ public class ClientServiceImpl implements ClientService {
     @Override
     @Transactional(readOnly = true)
     public PagedClientSearchResponse searchClients(ClientSearchRequest request) {
-        // Prepare date range for last visit filter
-        LocalDateTime lastVisitFrom = null;
-        LocalDateTime lastVisitTo = null;
-        if (request.getLastVisitFrom() != null) {
-            lastVisitFrom = LocalDateTime.of(request.getLastVisitFrom(), LocalTime.MIN);
-        }
-        if (request.getLastVisitTo() != null) {
-            lastVisitTo = LocalDateTime.of(request.getLastVisitTo(), LocalTime.MAX);
-        }
+        // Build specification from request
+        org.springframework.data.jpa.domain.Specification<Client> spec = 
+            com.westwood.repository.specification.ClientSpecification.buildSpecification(request);
 
-        // Normalize empty strings to null
-        String name = (request.getName() != null && request.getName().trim().isEmpty()) ? null : request.getName();
-        String phone = (request.getPhone() != null && request.getPhone().trim().isEmpty()) ? null : request.getPhone();
-        String email = (request.getEmail() != null && request.getEmail().trim().isEmpty()) ? null : request.getEmail();
+        // Prepare sorting
+        Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
         
-        // Convert ClientType enum to String for native query
-        String clientType = request.getClientType() != null ? request.getClientType().name() : null;
-
-        // Normalize tags - convert list to comma-separated string for PostgreSQL array function
-        // Empty list or null means no tag filter - use empty string for SQL compatibility
-        String tagNamesStr = "";
-        if (request.getTags() != null && !request.getTags().isEmpty()) {
-            // Convert list to comma-separated string for PostgreSQL array constructor
-            tagNamesStr = String.join(",", request.getTags());
-        }
-
-        // Prepare pagination (sorting is fixed to created_at DESC in the query)
+        // Prepare pagination with sorting
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
-            request.getSize() != null ? request.getSize() : 10
+            request.getSize() != null ? request.getSize() : 10,
+            sort
         );
 
-        // Execute search
-        Page<Client> clientPage = clientRepository.searchClientsWithFilters(
-            name,
-            phone,
-            email,
-            clientType,
-            tagNamesStr,
-            lastVisitFrom,
-            lastVisitTo,
-            pageable
-        );
+        // Execute search using Specification
+        Page<Client> clientPage = clientRepository.findAll(spec, pageable);
 
         // Convert to DTOs with statistics
         List<ClientSearchResultDto> content = clientPage.getContent().stream()
@@ -370,6 +344,32 @@ public class ClientServiceImpl implements ClientService {
             lastVisit,
             client.getCreatedAt()
         );
+    }
+
+    /**
+     * Prepare Sort object based on sortBy and sortDirection parameters
+     */
+    private Sort prepareSort(String sortBy, String sortDirection) {
+        if (sortBy == null || sortBy.trim().isEmpty()) {
+            sortBy = "createdAt";
+        }
+        
+        Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) 
+            ? Sort.Direction.ASC 
+            : Sort.Direction.DESC;
+        
+        switch (sortBy.toLowerCase()) {
+            case "name":
+                return Sort.by(direction, "name", "surname");
+            case "createdat":
+                return Sort.by(direction, "createdAt");
+            case "lastvisit":
+                // For last visit, we'll sort by createdAt as a proxy
+                // A more complex implementation would require a subquery
+                return Sort.by(direction, "createdAt");
+            default:
+                return Sort.by(direction, "createdAt");
+        }
     }
 
 }

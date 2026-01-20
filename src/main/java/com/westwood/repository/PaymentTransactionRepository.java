@@ -4,6 +4,7 @@ import com.westwood.domain.PaymentTransaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,7 @@ import java.util.List;
 import java.math.BigDecimal;
 
 @Repository
-public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long> {
+public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long>, JpaSpecificationExecutor<PaymentTransaction> {
 
     // Exclude refund transactions (status REFUND) from client-facing queries
     // Refund transactions are internal and used for event sourcing only
@@ -92,40 +93,5 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     List<Object[]> getDailyRevenueAndTransactionsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                           @Param("endDate") java.time.LocalDateTime endDate);
 
-    // Search payments with pagination and filters (native query to avoid Hibernate escape clause issues)
-    @Query(value = "SELECT DISTINCT p.* FROM payment_transactions p " +
-            "JOIN clients c ON c.id = p.client_id " +
-            "WHERE " +
-            "(CAST(:paymentId AS VARCHAR) IS NULL OR CAST(:paymentId AS VARCHAR) = '' OR p.tx_id LIKE '%' || CAST(:paymentId AS VARCHAR) || '%') " +
-            "AND (CAST(:clientName AS VARCHAR) IS NULL OR CAST(:clientName AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%')) " +
-            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
-            "AND (CAST(:periodFrom AS TIMESTAMP) IS NULL OR p.created_at >= CAST(:periodFrom AS TIMESTAMP)) " +
-            "AND (CAST(:periodTo AS TIMESTAMP) IS NULL OR p.created_at <= CAST(:periodTo AS TIMESTAMP)) " +
-            "AND (CAST(:paymentType AS VARCHAR) IS NULL OR CAST(:paymentType AS VARCHAR) = 'ALL' OR " +
-            "   (CAST(:paymentType AS VARCHAR) = 'PAID' AND p.status = 'COMPLETED') OR " +
-            "   (CAST(:paymentType AS VARCHAR) = 'REFUND' AND p.status = 'REFUNDED')) " +
-            "AND p.status != 'REFUND' " +
-            "ORDER BY p.created_at DESC",
-            countQuery = "SELECT COUNT(DISTINCT p.id) FROM payment_transactions p " +
-            "JOIN clients c ON c.id = p.client_id " +
-            "WHERE " +
-            "(CAST(:paymentId AS VARCHAR) IS NULL OR CAST(:paymentId AS VARCHAR) = '' OR p.tx_id LIKE '%' || CAST(:paymentId AS VARCHAR) || '%') " +
-            "AND (CAST(:clientName AS VARCHAR) IS NULL OR CAST(:clientName AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:clientName AS VARCHAR) || '%')) " +
-            "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
-            "AND (CAST(:periodFrom AS TIMESTAMP) IS NULL OR p.created_at >= CAST(:periodFrom AS TIMESTAMP)) " +
-            "AND (CAST(:periodTo AS TIMESTAMP) IS NULL OR p.created_at <= CAST(:periodTo AS TIMESTAMP)) " +
-            "AND (CAST(:paymentType AS VARCHAR) IS NULL OR CAST(:paymentType AS VARCHAR) = 'ALL' OR " +
-            "   (CAST(:paymentType AS VARCHAR) = 'PAID' AND p.status = 'COMPLETED') OR " +
-            "   (CAST(:paymentType AS VARCHAR) = 'REFUND' AND p.status = 'REFUNDED')) " +
-            "AND p.status != 'REFUND'",
-            nativeQuery = true)
-    Page<PaymentTransaction> searchPaymentsWithFilters(
-            @Param("paymentId") String paymentId,
-            @Param("clientName") String clientName,
-            @Param("phone") String phone,
-            @Param("periodFrom") LocalDateTime periodFrom,
-            @Param("periodTo") LocalDateTime periodTo,
-            @Param("paymentType") String paymentType,
-            Pageable pageable);
 }
 
