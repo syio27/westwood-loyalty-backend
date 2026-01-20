@@ -56,7 +56,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
             "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
             "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
-            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name IN (:tagNames) AND ct2.client_id = c.id)) " +
+            "AND (CAST(:tagNames AS VARCHAR) IS NULL OR CAST(:tagNames AS VARCHAR) = '' OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name = ANY(string_to_array(CAST(:tagNames AS VARCHAR), ',')) AND ct2.client_id = c.id)) " +
             "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
             "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
@@ -77,7 +77,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
             "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
             "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
-            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name IN (:tagNames) AND ct2.client_id = c.id)) " +
+            "AND (CAST(:tagNames AS VARCHAR) IS NULL OR CAST(:tagNames AS VARCHAR) = '' OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name = ANY(string_to_array(CAST(:tagNames AS VARCHAR), ',')) AND ct2.client_id = c.id)) " +
             "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
             "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
@@ -88,7 +88,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             @Param("phone") String phone,
             @Param("email") String email,
             @Param("clientType") String clientType,
-            @Param("tagNames") List<String> tagNames,
+            @Param("tagNames") String tagNames,
             @Param("lastVisitFrom") LocalDateTime lastVisitFrom,
             @Param("lastVisitTo") LocalDateTime lastVisitTo,
             @Param("sortBy") String sortBy,

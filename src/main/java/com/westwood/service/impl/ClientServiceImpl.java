@@ -287,8 +287,13 @@ public class ClientServiceImpl implements ClientService {
         // Convert ClientType enum to String for native query
         String clientType = request.getClientType() != null ? request.getClientType().name() : null;
 
-        // Normalize tags - empty list or null means no tag filter
-        List<String> tagNames = (request.getTags() != null && !request.getTags().isEmpty()) ? request.getTags() : null;
+        // Normalize tags - convert list to comma-separated string for PostgreSQL array function
+        // Empty list or null means no tag filter
+        String tagNamesStr = null;
+        if (request.getTags() != null && !request.getTags().isEmpty()) {
+            // Convert list to comma-separated string for PostgreSQL array constructor
+            tagNamesStr = String.join(",", request.getTags());
+        }
 
         // Prepare sorting parameters with defaults
         String sortBy = (request.getSortBy() != null && !request.getSortBy().trim().isEmpty()) 
@@ -313,7 +318,7 @@ public class ClientServiceImpl implements ClientService {
             phone,
             email,
             clientType,
-            tagNames,
+            tagNamesStr,
             lastVisitFrom,
             lastVisitTo,
             sortBy,
