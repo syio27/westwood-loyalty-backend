@@ -26,5 +26,6 @@ public class UserDto {
     private AccountStatus accountStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastSeenAt;
 }
 

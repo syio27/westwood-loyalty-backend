@@ -16,7 +16,6 @@ import com.westwood.util.mapper.ClientMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -288,6 +287,20 @@ public class ClientServiceImpl implements ClientService {
         // Convert ClientType enum to String for native query
         String clientType = request.getClientType() != null ? request.getClientType().name() : null;
 
+        // Normalize tags - empty list or null means no tag filter
+        List<String> tagNames = (request.getTags() != null && !request.getTags().isEmpty()) ? request.getTags() : null;
+
+        // Prepare sorting parameters with defaults
+        String sortBy = (request.getSortBy() != null && !request.getSortBy().trim().isEmpty()) 
+            ? request.getSortBy() : "createdAt";
+        String sortDirection = (request.getSortDirection() != null && !request.getSortDirection().trim().isEmpty()) 
+            ? request.getSortDirection().toUpperCase() : "DESC";
+        
+        // Validate sortDirection
+        if (!sortDirection.equals("ASC") && !sortDirection.equals("DESC")) {
+            sortDirection = "DESC";
+        }
+
         // Prepare pagination (sorting is handled in the native query)
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
@@ -300,8 +313,11 @@ public class ClientServiceImpl implements ClientService {
             phone,
             email,
             clientType,
+            tagNames,
             lastVisitFrom,
             lastVisitTo,
+            sortBy,
+            sortDirection,
             pageable
         );
 
@@ -364,25 +380,5 @@ public class ClientServiceImpl implements ClientService {
         );
     }
 
-    private Sort prepareSort(String sortBy, String sortDirection) {
-        if (sortBy == null || sortBy.isEmpty()) {
-            sortBy = "lastVisit"; // Default sort
-        }
-        
-        Sort.Direction direction = "ASC".equalsIgnoreCase(sortDirection) ? 
-            Sort.Direction.ASC : Sort.Direction.DESC;
-        
-        // Map sort field names to actual database column names (snake_case for native query)
-        switch (sortBy.toLowerCase()) {
-            case "name":
-                return Sort.by(direction, "name", "surname");
-            case "createdat":
-                return Sort.by(direction, "created_at");
-            case "lastvisit":
-            default:
-                // For last visit, we'll sort by created_at as a proxy
-                return Sort.by(direction, "created_at");
-        }
-    }
 }
 

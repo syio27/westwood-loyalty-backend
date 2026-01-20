@@ -4,12 +4,15 @@ import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.CreateUserRequest;
 import com.westwood.common.dto.PaymentSearchResultDto;
 import com.westwood.common.dto.UserDto;
+import com.westwood.common.dto.UserStatusDto;
 import com.westwood.service.PaymentService;
+import com.westwood.service.UserActivityService;
 import com.westwood.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,10 +24,12 @@ public class UserController {
 
     private final UserService userService;
     private final PaymentService paymentService;
+    private final UserActivityService userActivityService;
 
-    public UserController(UserService userService, PaymentService paymentService) {
+    public UserController(UserService userService, PaymentService paymentService, UserActivityService userActivityService) {
         this.userService = userService;
         this.paymentService = paymentService;
+        this.userActivityService = userActivityService;
     }
 
     @PostMapping
@@ -111,6 +116,38 @@ public class UserController {
     public ResponseEntity<DeleteLockedResponse> deleteLockedUsers() {
         int deletedCount = userService.deleteLockedUsers();
         return ResponseEntity.ok(new DeleteLockedResponse(deletedCount));
+    }
+
+    /**
+     * Update current user's last seen timestamp (heartbeat)
+     * Called periodically by frontend to indicate user is active
+     */
+    @PostMapping("/activity/heartbeat")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> updateHeartbeat(Authentication authentication) {
+        com.westwood.security.UserDetailsImpl userDetails = (com.westwood.security.UserDetailsImpl) authentication.getPrincipal();
+        userActivityService.updateLastSeen(userDetails.getUser().getUuid());
+        return ResponseEntity.ok().build();
+    }
+    
+    /**
+     * Get user's online status and last seen time
+     */
+    @GetMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<UserStatusDto> getUserStatus(@PathVariable UUID id) {
+        UserStatusDto status = userActivityService.getUserStatus(id);
+        return ResponseEntity.ok(status);
+    }
+    
+    /**
+     * Get online status for all users
+     */
+    @GetMapping("/status")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<List<UserStatusDto>> getAllUsersStatus() {
+        List<UserStatusDto> statuses = userActivityService.getAllUsersStatus();
+        return ResponseEntity.ok(statuses);
     }
 
     /**

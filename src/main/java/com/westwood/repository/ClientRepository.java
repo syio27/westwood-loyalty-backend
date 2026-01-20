@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -50,22 +49,35 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
     // Search clients with pagination and filters (native query to avoid Hibernate escape clause issues)
     @Query(value = "SELECT DISTINCT c.* FROM clients c " +
+            "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
+            "LEFT JOIN tags t ON t.id = ct.tag_id " +
             "WHERE " +
             "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
             "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
             "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
             "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
+            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name IN (:tagNames) AND ct2.client_id = c.id)) " +
             "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
             "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP)) " +
-            "ORDER BY c.created_at DESC",
+            "ORDER BY " +
+            "CASE WHEN :sortBy = 'name' AND :sortDirection = 'ASC' THEN c.name END ASC, " +
+            "CASE WHEN :sortBy = 'name' AND :sortDirection = 'DESC' THEN c.name END DESC, " +
+            "CASE WHEN :sortBy = 'createdAt' AND :sortDirection = 'ASC' THEN c.created_at END ASC, " +
+            "CASE WHEN :sortBy = 'createdAt' AND :sortDirection = 'DESC' THEN c.created_at END DESC, " +
+            "CASE WHEN :sortBy = 'lastVisit' AND :sortDirection = 'ASC' THEN (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') END ASC NULLS LAST, " +
+            "CASE WHEN :sortBy = 'lastVisit' AND :sortDirection = 'DESC' THEN (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') END DESC NULLS LAST, " +
+            "c.created_at DESC",
             countQuery = "SELECT COUNT(DISTINCT c.id) FROM clients c " +
+            "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
+            "LEFT JOIN tags t ON t.id = ct.tag_id " +
             "WHERE " +
             "(CAST(:name AS VARCHAR) IS NULL OR CAST(:name AS VARCHAR) = '' OR LOWER(c.name) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%') OR LOWER(c.surname) LIKE LOWER('%' || CAST(:name AS VARCHAR) || '%')) " +
             "AND (CAST(:phone AS VARCHAR) IS NULL OR CAST(:phone AS VARCHAR) = '' OR c.phone LIKE '%' || CAST(:phone AS VARCHAR) || '%') " +
             "AND (CAST(:email AS VARCHAR) IS NULL OR CAST(:email AS VARCHAR) = '' OR LOWER(c.email) LIKE LOWER('%' || CAST(:email AS VARCHAR) || '%')) " +
             "AND (CAST(:clientType AS VARCHAR) IS NULL OR c.client_type = CAST(:clientType AS VARCHAR)) " +
+            "AND (:tagNames IS NULL OR EXISTS (SELECT 1 FROM client_tag ct2 JOIN tags t2 ON t2.id = ct2.tag_id WHERE t2.name IN (:tagNames) AND ct2.client_id = c.id)) " +
             "AND (CAST(:lastVisitFrom AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
             "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
@@ -76,8 +88,11 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             @Param("phone") String phone,
             @Param("email") String email,
             @Param("clientType") String clientType,
+            @Param("tagNames") List<String> tagNames,
             @Param("lastVisitFrom") LocalDateTime lastVisitFrom,
             @Param("lastVisitTo") LocalDateTime lastVisitTo,
+            @Param("sortBy") String sortBy,
+            @Param("sortDirection") String sortDirection,
             Pageable pageable);
 }
 

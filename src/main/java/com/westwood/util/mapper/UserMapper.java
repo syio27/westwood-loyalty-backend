@@ -24,6 +24,7 @@ public class UserMapper {
         dto.setAccountStatus(user.getAccountStatus());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
+        dto.setLastSeenAt(user.getLastSeenAt());
 
         return dto;
     }

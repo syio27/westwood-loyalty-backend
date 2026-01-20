@@ -18,6 +18,7 @@ import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.AuthenticationService;
 import com.westwood.service.EmailService;
 import com.westwood.service.RefreshTokenService;
+import com.westwood.service.UserActivityService;
 import com.westwood.util.CookieUtil;
 import com.westwood.util.jwt.JwtTokenProvider;
 import org.slf4j.Logger;
@@ -55,6 +56,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final RefreshTokenService refreshTokenService;
     private final CookieUtil cookieUtil;
     private final EmailService emailService;
+    private final UserActivityService userActivityService;
     private final SecureRandom secureRandom;
 
     @Value("${app.frontend.url:}")
@@ -70,7 +72,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             JwtTokenProvider jwtTokenProvider,
             RefreshTokenService refreshTokenService,
             CookieUtil cookieUtil,
-            EmailService emailService) {
+            EmailService emailService,
+            UserActivityService userActivityService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -78,6 +81,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.refreshTokenService = refreshTokenService;
         this.cookieUtil = cookieUtil;
         this.emailService = emailService;
+        this.userActivityService = userActivityService;
         this.secureRandom = new SecureRandom();
     }
 
@@ -100,11 +104,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         cookieUtil.addAccessTokenCookie(response, accessToken, jwtTokenProvider.getAccessTokenExpiration() / 1000);
         cookieUtil.addRefreshTokenCookie(response, refreshToken.getToken(), jwtTokenProvider.getRefreshTokenExpiration() / 1000);
 
+        // Update user's last seen timestamp
+        User user = userDetails.getUser();
+        userActivityService.updateLastSeen(user.getUuid());
+
         Set<String> roles = userDetails.getAuthorities().stream()
                 .map(authority -> authority.getAuthority().replace("ROLE_", ""))
                 .collect(Collectors.toSet());
-
-        User user = userDetails.getUser();
         return new AuthResponse(
                 user.getUuid(),
                 user.getEmail(),
@@ -204,6 +210,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void logout(HttpServletRequest request, HttpServletResponse response) {
+        // Mark user as offline before clearing security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            try {
+                // Mark user as offline immediately by setting lastSeenAt to a time in the past
+                userActivityService.markUserOffline(userDetails.getUser().getUuid());
+            } catch (Exception e) {
+                logger.warn("Failed to mark user offline on logout: {}", e.getMessage());
+            }
+        }
+
         String refreshTokenValue = cookieUtil.getRefreshTokenFromCookie(request);
         
         if (refreshTokenValue != null) {
