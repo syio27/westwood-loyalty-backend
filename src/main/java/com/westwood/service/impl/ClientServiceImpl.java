@@ -295,18 +295,7 @@ public class ClientServiceImpl implements ClientService {
             tagNamesStr = String.join(",", request.getTags());
         }
 
-        // Prepare sorting parameters with defaults
-        String sortBy = (request.getSortBy() != null && !request.getSortBy().trim().isEmpty()) 
-            ? request.getSortBy() : "createdAt";
-        String sortDirection = (request.getSortDirection() != null && !request.getSortDirection().trim().isEmpty()) 
-            ? request.getSortDirection().toUpperCase() : "DESC";
-        
-        // Validate sortDirection
-        if (!sortDirection.equals("ASC") && !sortDirection.equals("DESC")) {
-            sortDirection = "DESC";
-        }
-
-        // Prepare pagination (sorting is handled in the native query)
+        // Prepare pagination (sorting is fixed to created_at DESC in the query)
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
             request.getSize() != null ? request.getSize() : 10
@@ -321,8 +310,6 @@ public class ClientServiceImpl implements ClientService {
             tagNamesStr,
             lastVisitFrom,
             lastVisitTo,
-            sortBy,
-            sortDirection,
             pageable
         );
 

@@ -48,6 +48,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     Long countAllClients();
 
     // Search clients with pagination and filters (native query to avoid Hibernate escape clause issues)
+    // Note: Sorting is fixed to created_at DESC for simplicity - dynamic sorting can be added later if needed
     @Query(value = "SELECT DISTINCT c.* FROM clients c " +
             "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
             "LEFT JOIN tags t ON t.id = ct.tag_id " +
@@ -61,14 +62,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') >= CAST(:lastVisitFrom AS TIMESTAMP)) " +
             "AND (CAST(:lastVisitTo AS TIMESTAMP) IS NULL OR " +
             "   (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') <= CAST(:lastVisitTo AS TIMESTAMP)) " +
-            "ORDER BY " +
-            "CASE WHEN :sortBy = 'name' AND :sortDirection = 'ASC' THEN c.name END ASC, " +
-            "CASE WHEN :sortBy = 'name' AND :sortDirection = 'DESC' THEN c.name END DESC, " +
-            "CASE WHEN :sortBy = 'createdAt' AND :sortDirection = 'ASC' THEN c.created_at END ASC, " +
-            "CASE WHEN :sortBy = 'createdAt' AND :sortDirection = 'DESC' THEN c.created_at END DESC, " +
-            "CASE WHEN :sortBy = 'lastVisit' AND :sortDirection = 'ASC' THEN (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') END ASC NULLS LAST, " +
-            "CASE WHEN :sortBy = 'lastVisit' AND :sortDirection = 'DESC' THEN (SELECT MAX(p.created_at) FROM payment_transactions p WHERE p.client_id = c.id AND p.status = 'COMPLETED') END DESC NULLS LAST, " +
-            "c.created_at DESC",
+            "ORDER BY c.created_at DESC",
             countQuery = "SELECT COUNT(DISTINCT c.id) FROM clients c " +
             "LEFT JOIN client_tag ct ON ct.client_id = c.id " +
             "LEFT JOIN tags t ON t.id = ct.tag_id " +
@@ -91,8 +85,6 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             @Param("tagNames") String tagNames,
             @Param("lastVisitFrom") LocalDateTime lastVisitFrom,
             @Param("lastVisitTo") LocalDateTime lastVisitTo,
-            @Param("sortBy") String sortBy,
-            @Param("sortDirection") String sortDirection,
             Pageable pageable);
 }
 
