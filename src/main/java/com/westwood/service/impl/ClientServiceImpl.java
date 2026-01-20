@@ -288,8 +288,8 @@ public class ClientServiceImpl implements ClientService {
         String clientType = request.getClientType() != null ? request.getClientType().name() : null;
 
         // Normalize tags - convert list to comma-separated string for PostgreSQL array function
-        // Empty list or null means no tag filter
-        String tagNamesStr = null;
+        // Empty list or null means no tag filter - use empty string for SQL compatibility
+        String tagNamesStr = "";
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             // Convert list to comma-separated string for PostgreSQL array constructor
             tagNamesStr = String.join(",", request.getTags());
