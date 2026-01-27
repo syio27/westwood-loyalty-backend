@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;314faa4f3ccf0652d3d16917a1af53a593c5685b74f33d5cc8f79a9a6c6222bd;/Users/baglan/repo/westwood/westwood-frontend/src/app/shared/components/breadcrumbs/breadcrumbs.component.ts"],
-  "sourcesContent": ["\n    .breadcrumbs {\n      display: flex;\n      align-items: center;\n      gap: 0.5rem;\n      font-size: 0.875rem;\n    }\n\n    .breadcrumb-item {\n      color: #64748b;\n      text-decoration: none;\n      transition: color 0.2s ease;\n    }\n\n    .breadcrumb-item:not(.last):hover {\n      color: #007bff;\n    }\n\n    .breadcrumb-item:not(.last)::after {\n      content: '\u203A';\n      margin-left: 0.5rem;\n      color: #cbd5e1;\n    }\n\n    .breadcrumb-item.last {\n      color: #1a202c;\n      font-weight: 500;\n      cursor: default;\n      pointer-events: none;\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,WAAS;AACT,eAAa;AACb,OAAK;AACL,aAAW;AACb;AAEA,CAAC;AACC,SAAO;AACP,mBAAiB;AACjB,cAAY,MAAM,KAAK;AACzB;AAEA,CANC,eAMe,KAAK,CAAC,KAAK;AACzB,SAAO;AACT;AAEA,CAVC,eAUe,KAAK,CAJC,KAIK;AACzB,WAAS;AACT,eAAa;AACb,SAAO;AACT;AAEA,CAhBC,eAgBe,CAVM;AAWpB,SAAO;AACP,eAAa;AACb,UAAQ;AACR,kBAAgB;AAClB;",
-  "names": []
-}
