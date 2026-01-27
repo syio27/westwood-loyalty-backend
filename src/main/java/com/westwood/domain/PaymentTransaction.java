@@ -47,12 +47,22 @@ public class PaymentTransaction extends BaseEntity {
     @Column(name = "tx_id", unique = true, nullable = false, length = 12)
     private String txId; // Format: PTX-YY-XXXXX (e.g., PTX-24-ABCDE) where XXXXX is random uppercase letters
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method")
+    private PaymentMethod paymentMethod;
+
     public enum PaymentStatus {
         PENDING,
         COMPLETED,
         CANCELLED,
         REFUND,      // Status for refund transactions (internal)
         REFUNDED     // Status for original payment transactions that have been refunded
+    }
+
+    public enum PaymentMethod {
+        CASH,
+        CARD,
+        TRANSFER
     }
 }
 

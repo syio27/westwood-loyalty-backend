@@ -90,6 +90,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setTransactionYear(yearSuffix);
         payment.setTransactionNumber(0L); // Not used anymore, set to 0
         payment.setTxId(transactionIdentifier);
+        payment.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : PaymentTransaction.PaymentMethod.CASH);
 
         PaymentTransaction savedPayment = paymentRepository.save(payment);
 
@@ -117,7 +118,34 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentTransactionDto getPaymentByTxId(String txId) {
         PaymentTransaction payment = paymentRepository.findByTxId(txId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + txId + "' not found"));
-        return paymentMapper.toDto(payment);
+        PaymentTransactionDto dto = paymentMapper.toDto(payment);
+        
+        // Fetch bonus revocations for this payment (if it was refunded)
+        List<BonusRevoked> revocations = bonusEventRepository.findBonusRevokedByPaymentTxId(txId);
+        List<BonusRevocationDto> revocationDtos = revocations.stream()
+                .map(this::toBonusRevocationDto)
+                .collect(Collectors.toList());
+        dto.setBonusRevocations(revocationDtos);
+        
+        return dto;
+    }
+    
+    private BonusRevocationDto toBonusRevocationDto(BonusRevoked revoked) {
+        BonusRevocationDto dto = new BonusRevocationDto();
+        dto.setId(revoked.getId());
+        dto.setBonusAmount(revoked.getBonusAmount());
+        dto.setRevokeReason(revoked.getRevokeReason());
+        dto.setRevokedAt(revoked.getCreatedAt());
+        
+        // Get refund transaction info
+        if (revoked.getPaymentTransaction() != null) {
+            dto.setRefundTxId(revoked.getPaymentTransaction().getTxId());
+            if (revoked.getPaymentTransaction().getEnteredBy() != null) {
+                dto.setRevokedByUsername(revoked.getPaymentTransaction().getEnteredBy().getEmail());
+            }
+        }
+        
+        return dto;
     }
 
     @Override
@@ -313,24 +341,24 @@ public class PaymentServiceImpl implements PaymentService {
         
         // Calculate bonus granted for this payment
         BigDecimal bonusGranted = BigDecimal.ZERO;
+        BigDecimal bonusRevoked = BigDecimal.ZERO;
         List<BonusGranted> grantedBonuses = bonusEventRepository.findBonusGrantedByPaymentTxId(payment.getTxId());
         if (grantedBonuses.isEmpty()) {
             // Fallback: try by payment ID
             grantedBonuses = bonusEventRepository.findBonusGrantedByPaymentId(payment.getId());
         }
-        // Get all revoked bonus IDs for this client to check if bonuses were revoked
-        List<BonusEvent> revokedEvents = bonusEventRepository
-            .findByClientIdAndEventTypeOrderByCreatedAtDesc(client.getId(), BonusRevoked.class);
-        Set<Long> revokedBonusIds = revokedEvents.stream()
-            .filter(event -> event instanceof BonusRevoked)
-            .map(event -> (BonusRevoked) event)
-            .map(revoked -> revoked.getOriginalBonusGranted() != null ? revoked.getOriginalBonusGranted().getId() : null)
-            .filter(Objects::nonNull)
+        // Get revoked bonuses for this payment
+        List<BonusRevoked> revokedBonuses = bonusEventRepository.findBonusRevokedByPaymentTxId(payment.getTxId());
+        Set<Long> revokedBonusIds = revokedBonuses.stream()
+            .filter(revoked -> revoked.getOriginalBonusGranted() != null)
+            .map(revoked -> revoked.getOriginalBonusGranted().getId())
             .collect(Collectors.toSet());
         
         for (BonusGranted granted : grantedBonuses) {
-            // Only count bonuses that were not revoked
-            if (!revokedBonusIds.contains(granted.getId())) {
+            // Check if this bonus was revoked
+            if (revokedBonusIds.contains(granted.getId())) {
+                bonusRevoked = bonusRevoked.add(granted.getBonusAmount());
+            } else {
                 bonusGranted = bonusGranted.add(granted.getBonusAmount());
             }
         }
@@ -374,12 +402,13 @@ public class PaymentServiceImpl implements PaymentService {
             client.getEmail(),
             payment.getAmount(),
             payment.getStatus(),
-            null, // paymentMethod - пока не реализовано, можно добавить в будущем
+            payment.getPaymentMethod(),
             enteredBy != null ? enteredBy.getEmail() : null,
             payment.getCreatedAt(),
             refundedPaymentTxId,
             bonusGranted,
             bonusUsed,
+            bonusRevoked,
             refundReason
         );
     }
@@ -473,6 +502,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setAmount(finalAmount); // К оплате (10000)
         payment.setNotes(request.getNotes());
         payment.setStatus(PaymentTransaction.PaymentStatus.COMPLETED);
+        payment.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : PaymentTransaction.PaymentMethod.CASH);
         PaymentTransaction savedPayment = paymentRepository.save(payment);
 
         // Create BonusUsed event if bonuses were used
@@ -558,6 +588,18 @@ public class PaymentServiceImpl implements PaymentService {
                 .filter(tx -> tx.getStatus() != PaymentTransaction.PaymentStatus.REFUND) // Exclude internal refund transactions
                 .map(this::toSearchResultDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public PaymentTransactionDto updatePaymentMethod(String txId, UpdatePaymentMethodRequest request) {
+        PaymentTransaction payment = paymentRepository.findByTxId(txId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + txId + "' not found"));
+
+        payment.setPaymentMethod(request.getPaymentMethod());
+        PaymentTransaction savedPayment = paymentRepository.save(payment);
+
+        return paymentMapper.toDto(savedPayment);
     }
 
 }

@@ -97,10 +97,27 @@ public class BonusMapper {
         } else if (event instanceof BonusRevoked) {
             BonusRevoked revoked = (BonusRevoked) event;
             dto.setEventType("REVOKED");
-            dto.setPaymentTxId(revoked.getPaymentTransaction() != null ? 
-                revoked.getPaymentTransaction().getTxId() : null);
             dto.setRevokeReason(revoked.getRevokeReason());
-            // Note: originalBonusGrantedId could be added to BonusEventDto if needed
+            dto.setRevokedAt(revoked.getCreatedAt());
+            
+            // Refund transaction info
+            dto.setRefundTxId(revoked.getPaymentTransaction() != null ? 
+                revoked.getPaymentTransaction().getTxId() : null);
+            
+            // Copy info from original granted bonus
+            BonusGranted originalGrant = revoked.getOriginalBonusGranted();
+            if (originalGrant != null) {
+                Hibernate.initialize(originalGrant);
+                Hibernate.initialize(originalGrant.getPaymentTransaction());
+                dto.setOriginalPaymentTxId(originalGrant.getPaymentTransaction() != null ? 
+                    originalGrant.getPaymentTransaction().getTxId() : null);
+                dto.setPaymentTxId(originalGrant.getPaymentTransaction() != null ? 
+                    originalGrant.getPaymentTransaction().getTxId() : null);
+                dto.setBonusPercentage(originalGrant.getBonusPercentage());
+                dto.setPaymentAmount(originalGrant.getPaymentAmount());
+                dto.setGrantReason(originalGrant.getGrantReason());
+                dto.setExpiresAt(originalGrant.getExpiresAt());
+            }
         }
 
         return dto;

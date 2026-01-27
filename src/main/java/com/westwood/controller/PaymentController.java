@@ -105,6 +105,15 @@ public class PaymentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{txId}/payment-method")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<PaymentTransactionDto> updatePaymentMethod(
+            @PathVariable String txId,
+            @Valid @RequestBody UpdatePaymentMethodRequest request) {
+        PaymentTransactionDto updatedPayment = paymentService.updatePaymentMethod(txId, request);
+        return ResponseEntity.ok(updatedPayment);
+    }
+
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {

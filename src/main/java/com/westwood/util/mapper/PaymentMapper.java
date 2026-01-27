@@ -22,6 +22,7 @@ public class PaymentMapper {
         dto.setAmount(payment.getAmount());
         dto.setNotes(payment.getNotes());
         dto.setStatus(payment.getStatus());
+        dto.setPaymentMethod(payment.getPaymentMethod());
         dto.setRefundedPaymentTxId(payment.getRefundedPayment() != null ? payment.getRefundedPayment().getTxId() : null);
         dto.setCreatedAt(payment.getCreatedAt());
         dto.setUpdatedAt(payment.getUpdatedAt());

@@ -27,8 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import com.westwood.domain.BonusRevoked;
 
 @Service
 @Transactional
@@ -126,26 +129,51 @@ public class BonusServiceImpl implements BonusService {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
         
-        Pageable pageable = PageRequest.of(
-            page != null ? page : 0,
-            size != null ? size : 10,
-            Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+        // Fetch all events for the client to identify revoked grants
+        List<BonusEvent> allEvents = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId());
         
-        Page<BonusEvent> eventPage = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId(), pageable);
+        // Collect IDs of GRANTED bonuses that have been revoked
+        Set<Long> revokedGrantIds = allEvents.stream()
+                .filter(e -> e instanceof BonusRevoked)
+                .map(e -> (BonusRevoked) e)
+                .filter(r -> r.getOriginalBonusGranted() != null)
+                .map(r -> r.getOriginalBonusGranted().getId())
+                .collect(Collectors.toSet());
         
-        List<BonusEventDto> content = eventPage.getContent().stream()
-                .map(bonusMapper::toDto)
+        // Filter out GRANTED events that have been revoked (will be shown as REVOKED instead)
+        List<BonusEvent> filteredEvents = allEvents.stream()
+                .filter(e -> {
+                    if (e instanceof BonusGranted) {
+                        return !revokedGrantIds.contains(e.getId());
+                    }
+                    return true;
+                })
                 .collect(Collectors.toList());
+        
+        // Apply pagination manually
+        int pageNum = page != null ? page : 0;
+        int pageSize = size != null ? size : 10;
+        int start = pageNum * pageSize;
+        int end = Math.min(start + pageSize, filteredEvents.size());
+        
+        List<BonusEventDto> content = filteredEvents.subList(
+                Math.min(start, filteredEvents.size()), 
+                Math.min(end, filteredEvents.size())
+            ).stream()
+            .map(bonusMapper::toDto)
+            .collect(Collectors.toList());
+        
+        long totalElements = filteredEvents.size();
+        int totalPages = (int) Math.ceil((double) totalElements / pageSize);
         
         return new PagedBonusHistoryResponse(
             content,
-            eventPage.getNumber(),
-            eventPage.getSize(),
-            eventPage.getTotalElements(),
-            eventPage.getTotalPages(),
-            eventPage.isFirst(),
-            eventPage.isLast()
+            pageNum,
+            pageSize,
+            totalElements,
+            totalPages,
+            pageNum == 0,
+            pageNum >= totalPages - 1
         );
     }
 

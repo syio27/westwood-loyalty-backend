@@ -18,4 +18,6 @@ public class CompletePaymentRequest {
     private BigDecimal bonusAmountUsed; // Скидка бонусами (2000), default 0
 
     private String notes; // Опциональные заметки
+
+    private com.westwood.domain.PaymentTransaction.PaymentMethod paymentMethod;
 }

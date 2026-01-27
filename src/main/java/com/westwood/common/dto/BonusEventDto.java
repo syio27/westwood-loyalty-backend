@@ -33,5 +33,8 @@ public class BonusEventDto {
     
     // For REVOKED events
     private String revokeReason; // Reason why bonus was revoked (e.g., "PAYMENT_REFUND")
+    private String originalPaymentTxId; // Original payment that granted the bonus (for REVOKED events)
+    private String refundTxId; // Refund transaction that caused the revocation
+    private LocalDateTime revokedAt; // When the bonus was revoked
 }
 

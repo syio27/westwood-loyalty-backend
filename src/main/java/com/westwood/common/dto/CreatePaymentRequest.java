@@ -18,5 +18,7 @@ public class CreatePaymentRequest {
     private BigDecimal amount;
 
     private String notes;
+
+    private com.westwood.domain.PaymentTransaction.PaymentMethod paymentMethod;
 }
 

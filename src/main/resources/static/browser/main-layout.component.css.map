@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;35cd209d3ea9c00e3db2cd8d2e0c14d380f23081f75a063d89b2fa92b4d6f1cd;/Users/baglan/repo/westwood/westwood-frontend/src/app/layouts/main-layout/main-layout.component.ts"],
+  "sourcesContent": ["\n    .main-layout {\n      min-height: 100vh;\n      display: flex;\n      overflow-x: hidden;\n      width: 100%;\n    }\n\n    .main-content-wrapper {\n      flex: 1;\n      display: flex;\n      flex-direction: column;\n      min-height: 100vh;\n      padding: 0 2rem;\n      background-color: #f9fafb;\n    }\n\n    app-page-header {\n      display: block;\n      background-color: #f9fafb;\n    }\n\n    .main-content {\n      flex: 1;\n      background-color: #f9fafb;\n    }\n\n    @media (max-width: 768px) {\n      .main-content-wrapper {\n        padding: 0 1rem;\n        padding-top: 80px; /* Account for fixed mobile header + extra spacing */\n      }\n\n      app-page-header {\n        padding-top: 0.5rem; /* Additional spacing for page header */\n      }\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,cAAY;AACZ,WAAS;AACT,cAAY;AACZ,SAAO;AACT;AAEA,CAAC;AACC,QAAM;AACN,WAAS;AACT,kBAAgB;AAChB,cAAY;AACZ,WAAS,EAAE;AACX,oBAAkB;AACpB;AAEA;AACE,WAAS;AACT,oBAAkB;AACpB;AAEA,CAAC;AACC,QAAM;AACN,oBAAkB;AACpB;AAEA,OAAO,CAAC,SAAS,EAAE;AACjB,GApBD;AAqBG,aAAS,EAAE;AACX,iBAAa;AACf;AAEA;AACE,iBAAa;AACf;AACF;",
+  "names": []
+}

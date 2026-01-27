@@ -36,5 +36,13 @@ public interface PaymentService {
      * @return List of payment transactions with bonus info
      */
     List<PaymentSearchResultDto> getTransactionsByUserId(UUID userId);
+
+    /**
+     * Update payment method for a payment transaction
+     * @param txId Transaction identifier
+     * @param request Update payment method request
+     * @return Updated payment transaction DTO
+     */
+    PaymentTransactionDto updatePaymentMethod(String txId, UpdatePaymentMethodRequest request);
 }
 
