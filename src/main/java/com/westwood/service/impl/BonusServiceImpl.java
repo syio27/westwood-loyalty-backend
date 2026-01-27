@@ -182,5 +182,56 @@ public class BonusServiceImpl implements BonusService {
         // This method can be extended for more complex recalculation logic
         // Client is loaded to ensure it exists, but recalculation happens via event replay if needed
     }
+
+    @Override
+    @Transactional
+    public BonusBalanceDto manualGrantBonus(UUID clientId, com.westwood.common.dto.ManualBonusGrantRequest request) {
+        Client client = clientRepository.findByUuid(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
+
+        // Create manual bonus grant
+        BonusGranted bonusGranted = new BonusGranted();
+        bonusGranted.setClient(client);
+        bonusGranted.setEventId(UUID.randomUUID());
+        bonusGranted.setBonusAmount(request.getAmount());
+        bonusGranted.setPaymentTransaction(null); // No payment associated
+        bonusGranted.setBonusPercentage(null); // No percentage
+        bonusGranted.setPaymentAmount(null); // No payment amount
+        bonusGranted.setBonusType(null); // No bonus type
+        bonusGranted.setGrantReason("MANUAL: " + (request.getReason() != null ? request.getReason() : "Ручное начисление"));
+        bonusGranted.setExpiresAt(null); // Manual bonuses don't expire
+
+        bonusEventRepository.save(bonusGranted);
+
+        // Return updated balance
+        return getClientBonusBalance(clientId);
+    }
+
+    @Override
+    @Transactional
+    public BonusBalanceDto manualRevokeBonus(UUID clientId, com.westwood.common.dto.ManualBonusRevokeRequest request) {
+        Client client = clientRepository.findByUuid(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
+
+        // Check current balance
+        BonusBalanceDto currentBalance = getClientBonusBalance(clientId);
+        if (request.getAmount().compareTo(currentBalance.getCurrentBalance()) > 0) {
+            throw new IllegalArgumentException("Cannot revoke more than current balance. Current balance: " + currentBalance.getCurrentBalance());
+        }
+
+        // Create manual revoke (no original bonus grant linked)
+        BonusRevoked bonusRevoked = new BonusRevoked();
+        bonusRevoked.setClient(client);
+        bonusRevoked.setEventId(UUID.randomUUID());
+        bonusRevoked.setBonusAmount(request.getAmount());
+        bonusRevoked.setPaymentTransaction(null); // No payment associated
+        bonusRevoked.setOriginalBonusGranted(null); // No specific grant being revoked
+        bonusRevoked.setRevokeReason("MANUAL: " + (request.getReason() != null ? request.getReason() : "Ручное списание"));
+
+        bonusEventRepository.save(bonusRevoked);
+
+        // Return updated balance
+        return getClientBonusBalance(clientId);
+    }
 }
 

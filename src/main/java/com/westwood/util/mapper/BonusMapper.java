@@ -31,7 +31,8 @@ public class BonusMapper {
         // Track which granted bonuses have been revoked
         Set<Long> revokedGrantedIds = new HashSet<>();
 
-        // First pass: collect revoked bonus IDs
+        // First pass: collect revoked bonus IDs and handle manual revokes
+        BigDecimal manualRevokes = BigDecimal.ZERO;
         for (BonusEvent event : events) {
             if (event instanceof BonusRevoked) {
                 BonusRevoked revoked = (BonusRevoked) event;
@@ -40,6 +41,9 @@ public class BonusMapper {
                 if (revoked.getOriginalBonusGranted() != null) {
                     revokedGrantedIds.add(revoked.getOriginalBonusGranted().getId());
                     totalRevoked = totalRevoked.add(event.getBonusAmount());
+                } else {
+                    // Manual revoke - no original bonus, just a direct deduction
+                    manualRevokes = manualRevokes.add(event.getBonusAmount());
                 }
             }
         }
@@ -61,7 +65,12 @@ public class BonusMapper {
             }
         }
 
-        BigDecimal currentBalance = totalAccumulated.subtract(totalUsed);
+        // currentBalance = accumulated - used - manualRevokes
+        BigDecimal currentBalance = totalAccumulated.subtract(totalUsed).subtract(manualRevokes);
+        // Ensure balance doesn't go negative
+        if (currentBalance.compareTo(BigDecimal.ZERO) < 0) {
+            currentBalance = BigDecimal.ZERO;
+        }
 
         return new BonusBalanceDto(clientId, clientName, totalAccumulated, totalUsed, currentBalance);
     }

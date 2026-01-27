@@ -1,15 +1,13 @@
 package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
-import com.westwood.common.dto.BonusBalanceDto;
-import com.westwood.common.dto.BonusEventDto;
-import com.westwood.common.dto.PagedBonusHistoryResponse;
+import com.westwood.common.dto.*;
 import com.westwood.service.BonusService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -35,15 +33,25 @@ public class BonusController {
             @PathVariable UUID clientId,
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
-        PagedBonusHistoryResponse response = bonusService.getClientBonusHistory(clientId, page, size);
-        return ResponseEntity.ok(response);
+        PagedBonusHistoryResponse history = bonusService.getClientBonusHistory(clientId, page, size);
+        return ResponseEntity.ok(history);
     }
 
-    @PostMapping("/recalculate/{clientId}")
+    @PostMapping("/client/{clientId}/grant")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
-    public ResponseEntity<Void> recalculateBonusBalance(@PathVariable UUID clientId) {
-        bonusService.recalculateBonusBalance(clientId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<BonusBalanceDto> grantBonus(
+            @PathVariable UUID clientId,
+            @Valid @RequestBody ManualBonusGrantRequest request) {
+        BonusBalanceDto balance = bonusService.manualGrantBonus(clientId, request);
+        return ResponseEntity.ok(balance);
+    }
+
+    @PostMapping("/client/{clientId}/revoke")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<BonusBalanceDto> revokeBonus(
+            @PathVariable UUID clientId,
+            @Valid @RequestBody ManualBonusRevokeRequest request) {
+        BonusBalanceDto balance = bonusService.manualRevokeBonus(clientId, request);
+        return ResponseEntity.ok(balance);
     }
 }
-
