@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;c1ec4a66103ad99a9a693290b4da24d9e12364023ed46be0468e23633f471fd0;/Users/baglan/repo/westwood/westwood-frontend/src/app/layouts/page-header/page-header.component.ts"],
+  "sourcesContent": ["\n    .page-header {\n      padding: 1.5rem 0 3.5rem 0;\n    }\n\n    :host ::ng-deep .breadcrumbs {\n      margin-bottom: 0.5rem;\n    }\n\n    .page-title {\n      font-size: 1.75rem;\n      font-weight: 700;\n      color: #0f172a;\n      margin: 0;\n      letter-spacing: -0.02em;\n    }\n\n    @media (max-width: 768px) {\n      .page-header {\n        padding: 1rem 0;\n        margin-top: 0;\n        position: relative;\n        z-index: 1;\n      }\n\n      .page-title {\n        font-size: 1.5rem;\n      }\n    }\n  "],
+  "mappings": ";AACI,CAAC;AACC,WAAS,OAAO,EAAE,OAAO;AAC3B;AAEA,MAAM,UAAU,CAAC;AACf,iBAAe;AACjB;AAEA,CAAC;AACC,aAAW;AACX,eAAa;AACb,SAAO;AACP,UAAQ;AACR,kBAAgB;AAClB;AAEA,OAAO,CAAC,SAAS,EAAE;AACjB,GAjBD;AAkBG,aAAS,KAAK;AACd,gBAAY;AACZ,cAAU;AACV,aAAS;AACX;AAEA,GAhBD;AAiBG,eAAW;AACb;AACF;",
+  "names": []
+}

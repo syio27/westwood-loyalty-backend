@@ -55,6 +55,14 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT br FROM BonusRevoked br JOIN FETCH br.originalBonusGranted obg JOIN FETCH obg.paymentTransaction pt WHERE pt.id = :paymentId")
     List<BonusRevoked> findBonusRevokedByPaymentId(@Param("paymentId") Long paymentId);
 
+    // Find bonus revocations by original bonus granted ID
+    @Query("SELECT br FROM BonusRevoked br WHERE br.originalBonusGranted.id = :grantedId")
+    List<BonusRevoked> findByOriginalBonusGrantedId(@Param("grantedId") Long grantedId);
+
+    // Find bonus revocations by refund transaction txId
+    @Query("SELECT br FROM BonusRevoked br WHERE br.paymentTransaction.txId = :refundTxId")
+    List<BonusRevoked> findBonusRevokedByRefundTxId(@Param("refundTxId") String refundTxId);
+
     // Find most recent bonus granted for a client (for welcome bonus etc.)
     @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId ORDER BY bg.createdAt DESC")
     List<BonusGranted> findMostRecentBonusGrantedByClientId(@Param("clientId") Long clientId);

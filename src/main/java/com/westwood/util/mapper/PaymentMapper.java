@@ -2,6 +2,7 @@ package com.westwood.util.mapper;
 
 import com.westwood.common.dto.PaymentTransactionDto;
 import com.westwood.domain.PaymentTransaction;
+import com.westwood.util.ClientUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,8 +16,7 @@ public class PaymentMapper {
         PaymentTransactionDto dto = new PaymentTransactionDto();
         dto.setTxId(payment.getTxId());
         dto.setClientId(payment.getClient() != null ? payment.getClient().getUuid() : null); // Use UUID for external
-        dto.setClientName(payment.getClient() != null ? 
-            payment.getClient().getName() + " " + payment.getClient().getSurname() : null);
+        dto.setClientName(payment.getClient() != null ? ClientUtils.getFullName(payment.getClient()) : null);
         dto.setEnteredByUserId(payment.getEnteredBy() != null ? payment.getEnteredBy().getUuid() : null); // Use UUID for external
         dto.setEnteredByUsername(payment.getEnteredBy() != null ? payment.getEnteredBy().getEmail() : null);
         dto.setAmount(payment.getAmount());

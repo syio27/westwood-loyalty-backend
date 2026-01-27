@@ -84,7 +84,7 @@ public class EventReplayServiceImpl implements EventReplayService {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
         List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtAsc(clientId);
-        String clientName = client.getName() + " " + client.getSurname();
+        String clientName = com.westwood.util.ClientUtils.getFullName(client);
         return bonusMapper.calculateBalanceDto(client.getUuid(), clientName, events); // Use UUID for DTO
     }
 }

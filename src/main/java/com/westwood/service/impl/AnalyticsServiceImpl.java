@@ -63,7 +63,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
                     ClientValueDto dto = new ClientValueDto();
                     dto.setClientId(client.getUuid()); // Use UUID for external
-                    dto.setClientName(client.getName() + " " + client.getSurname());
+                    dto.setClientName(com.westwood.util.ClientUtils.getFullName(client));
                     dto.setPhone(client.getPhone());
                     dto.setTotalSpent(totalSpent);
                     dto.setTransactionCount((long) payments.size());
@@ -99,7 +99,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
         ClientValueDto dto = new ClientValueDto();
         dto.setClientId(client.getUuid()); // Use UUID for external
-        dto.setClientName(client.getName() + " " + client.getSurname());
+        dto.setClientName(com.westwood.util.ClientUtils.getFullName(client));
         dto.setPhone(client.getPhone());
         dto.setTotalSpent(totalSpent);
         dto.setTransactionCount((long) payments.size());

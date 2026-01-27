@@ -44,5 +44,12 @@ public interface PaymentService {
      * @return Updated payment transaction DTO
      */
     PaymentTransactionDto updatePaymentMethod(String txId, UpdatePaymentMethodRequest request);
+
+    /**
+     * Delete a completed payment transaction and revoke any associated bonuses.
+     * This is a hard delete - the payment and bonuses are permanently removed from the database.
+     * @param txId Transaction identifier
+     */
+    void deletePayment(String txId);
 }
 

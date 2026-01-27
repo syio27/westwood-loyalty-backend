@@ -67,7 +67,7 @@ public class MessageRecordServiceImpl implements MessageRecordService {
         return new MessageRecordDto(
                 record.getId(),
                 record.getClient().getUuid(),
-                record.getClient().getName() + " " + record.getClient().getSurname(),
+                com.westwood.util.ClientUtils.getFullName(record.getClient()),
                 record.getInitiatedBy().getId(),
                 record.getInitiatedBy().getEmail(),
                 record.getMessageContent(),

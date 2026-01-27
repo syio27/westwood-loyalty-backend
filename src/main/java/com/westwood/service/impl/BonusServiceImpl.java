@@ -113,7 +113,7 @@ public class BonusServiceImpl implements BonusService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
         List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtAsc(client.getId()); // Use internal ID
-        String clientName = client.getName() + " " + client.getSurname();
+        String clientName = com.westwood.util.ClientUtils.getFullName(client);
 
         return bonusMapper.calculateBalanceDto(client.getUuid(), clientName, events); // Use UUID for DTO
     }

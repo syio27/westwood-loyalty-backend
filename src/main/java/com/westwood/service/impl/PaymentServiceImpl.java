@@ -397,7 +397,7 @@ public class PaymentServiceImpl implements PaymentService {
         return new PaymentSearchResultDto(
             payment.getTxId(),
             client.getUuid(),
-            client.getName() + " " + client.getSurname(),
+            com.westwood.util.ClientUtils.getFullName(client),
             client.getPhone(),
             client.getEmail(),
             payment.getAmount(),
@@ -600,6 +600,100 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentTransaction savedPayment = paymentRepository.save(payment);
 
         return paymentMapper.toDto(savedPayment);
+    }
+
+    @Override
+    @Transactional
+    public void deletePayment(String txId) {
+        PaymentTransaction payment = paymentRepository.findByTxId(txId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + txId + "' not found"));
+
+        // If this is a refund transaction, delete both the refund and the original payment with all bonuses
+        if (payment.getStatus() == PaymentTransaction.PaymentStatus.REFUND) {
+            PaymentTransaction originalPayment = payment.getRefundedPayment();
+            
+            // Delete bonus revocations linked to this refund transaction
+            List<BonusRevoked> revokedBonuses = bonusEventRepository.findBonusRevokedByRefundTxId(txId);
+            for (BonusRevoked revoked : revokedBonuses) {
+                bonusEventRepository.delete(revoked);
+            }
+            
+            // Delete the refund transaction first (it references the original)
+            paymentRepository.delete(payment);
+            
+            // Now delete the original payment and its bonuses
+            if (originalPayment != null) {
+                String originalTxId = originalPayment.getTxId();
+                
+                // Delete all bonuses granted by the original payment
+                List<BonusGranted> grantedBonuses = bonusEventRepository.findBonusGrantedByPaymentTxId(originalTxId);
+                for (BonusGranted granted : grantedBonuses) {
+                    // Delete any remaining revocations of this bonus
+                    List<BonusRevoked> revocations = bonusEventRepository.findByOriginalBonusGrantedId(granted.getId());
+                    for (BonusRevoked revoked : revocations) {
+                        bonusEventRepository.delete(revoked);
+                    }
+                    bonusEventRepository.delete(granted);
+                }
+                
+                // Delete all bonuses used in the original payment
+                List<BonusUsed> usedBonuses = bonusEventRepository.findBonusUsedByPaymentTxId(originalTxId);
+                for (BonusUsed used : usedBonuses) {
+                    bonusEventRepository.delete(used);
+                }
+                
+                // Delete the original payment
+                paymentRepository.delete(originalPayment);
+            }
+            return;
+        }
+
+        // If this payment has been refunded, delete the refund transaction first
+        if (payment.getStatus() == PaymentTransaction.PaymentStatus.REFUNDED) {
+            // Find and delete the refund transaction(s)
+            List<PaymentTransaction> refundTransactions = paymentRepository.findRefundsByPaymentTxId(txId);
+            for (PaymentTransaction refund : refundTransactions) {
+                // Delete bonus revocations linked to refund transaction
+                List<BonusRevoked> revokedBonuses = bonusEventRepository.findBonusRevokedByRefundTxId(refund.getTxId());
+                for (BonusRevoked revoked : revokedBonuses) {
+                    bonusEventRepository.delete(revoked);
+                }
+                paymentRepository.delete(refund);
+            }
+            // Continue to delete the original payment and its bonuses below
+        }
+
+        // Delete any other refund transactions that reference this payment (shouldn't exist, but for safety)
+        List<PaymentTransaction> refundTransactions = paymentRepository.findRefundsByPaymentTxId(txId);
+        for (PaymentTransaction refund : refundTransactions) {
+            // Delete bonus revocations linked to refund transaction
+            List<BonusRevoked> revokedBonuses = bonusEventRepository.findBonusRevokedByRefundTxId(refund.getTxId());
+            for (BonusRevoked revoked : revokedBonuses) {
+                bonusEventRepository.delete(revoked);
+            }
+            paymentRepository.delete(refund);
+        }
+
+        // Delete all bonuses granted by this payment
+        List<BonusGranted> grantedBonuses = bonusEventRepository.findBonusGrantedByPaymentTxId(txId);
+        for (BonusGranted granted : grantedBonuses) {
+            // First, delete any revocations of this bonus
+            List<BonusRevoked> revocations = bonusEventRepository.findByOriginalBonusGrantedId(granted.getId());
+            for (BonusRevoked revoked : revocations) {
+                bonusEventRepository.delete(revoked);
+            }
+            // Then delete the granted bonus
+            bonusEventRepository.delete(granted);
+        }
+
+        // Delete all bonuses used in this payment
+        List<BonusUsed> usedBonuses = bonusEventRepository.findBonusUsedByPaymentTxId(txId);
+        for (BonusUsed used : usedBonuses) {
+            bonusEventRepository.delete(used);
+        }
+
+        // Finally, delete the payment transaction
+        paymentRepository.delete(payment);
     }
 
 }

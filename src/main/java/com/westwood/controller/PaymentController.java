@@ -105,6 +105,13 @@ public class PaymentController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{txId}")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<Void> deletePayment(@PathVariable String txId) {
+        paymentService.deletePayment(txId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{txId}/payment-method")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<PaymentTransactionDto> updatePaymentMethod(

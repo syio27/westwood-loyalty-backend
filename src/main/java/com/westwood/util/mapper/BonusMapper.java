@@ -17,6 +17,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.westwood.util.ClientUtils;
+
 @Component
 public class BonusMapper {
 
@@ -73,8 +75,7 @@ public class BonusMapper {
         dto.setId(event.getId());
         dto.setEventId(event.getEventId());
         dto.setClientId(event.getClient() != null ? event.getClient().getUuid() : null);
-        dto.setClientName(event.getClient() != null ? 
-            event.getClient().getName() + " " + event.getClient().getSurname() : null);
+        dto.setClientName(event.getClient() != null ? ClientUtils.getFullName(event.getClient()) : null);
         dto.setBonusAmount(event.getBonusAmount());
         dto.setCreatedAt(event.getCreatedAt());
 
