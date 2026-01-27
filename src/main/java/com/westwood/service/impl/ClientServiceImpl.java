@@ -13,6 +13,7 @@ import com.westwood.service.BonusService;
 import com.westwood.service.ClientService;
 import com.westwood.service.EventBonusService;
 import com.westwood.util.mapper.ClientMapper;
+import com.westwood.util.PhoneUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -82,12 +83,15 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public ClientDto createClient(CreateClientRequest request) {
-        if (clientRepository.existsByPhone(request.getPhone())) {
+        // Normalize phone number for consistent storage
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        
+        if (clientRepository.existsByPhone(normalizedPhone)) {
             throw new ResourceAlreadyExistsException("Client with phone '" + request.getPhone() + "' already exists");
         }
 
         Client client = new Client();
-        client.setPhone(request.getPhone());
+        client.setPhone(normalizedPhone);
         client.setName(request.getName());
         client.setSurname(request.getSurname());
         client.setDateOfBirth(request.getDateOfBirth());
@@ -163,11 +167,14 @@ public class ClientServiceImpl implements ClientService {
         Client client = clientRepository.findByUuid(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + id + "' not found"));
 
-        if (!client.getPhone().equals(request.getPhone()) && clientRepository.existsByPhone(request.getPhone())) {
+        // Normalize phone number for consistent storage
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        
+        if (!client.getPhone().equals(normalizedPhone) && clientRepository.existsByPhone(normalizedPhone)) {
             throw new ResourceAlreadyExistsException("Client with phone '" + request.getPhone() + "' already exists");
         }
 
-        client.setPhone(request.getPhone());
+        client.setPhone(normalizedPhone);
         client.setName(request.getName());
         client.setSurname(request.getSurname());
         client.setDateOfBirth(request.getDateOfBirth());
@@ -197,7 +204,10 @@ public class ClientServiceImpl implements ClientService {
     @Override
     @Transactional(readOnly = true)
     public ClientWithBonusDto getClientByPhoneWithBonus(String phone) {
-        Client client = clientRepository.findByPhone(phone)
+        // Normalize phone number for consistent lookup
+        String normalizedPhone = PhoneUtils.normalize(phone);
+        
+        Client client = clientRepository.findByPhone(normalizedPhone)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with phone '" + phone + "' not found"));
 
         BonusBalanceDto bonusBalance = bonusService.getClientBonusBalance(client.getUuid());
