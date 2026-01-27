@@ -31,5 +31,7 @@ public interface ClientService {
     Set<String> saveOrUpdateClientTags(UUID id, ClientTagsRequestDto request);
 
     PagedClientSearchResponse searchClients(ClientSearchRequest request);
+
+    List<FrequentClientDto> getFrequentClients(int limit);
 }
 

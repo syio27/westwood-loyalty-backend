@@ -48,5 +48,13 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
     @Query("SELECT COUNT(c) FROM Client c")
     Long countAllClients();
 
+    // Find frequent clients by transaction count (most transactions first)
+    @Query("SELECT c FROM Client c " +
+           "JOIN PaymentTransaction p ON p.client.id = c.id " +
+           "WHERE p.status = 'COMPLETED' " +
+           "GROUP BY c.id " +
+           "ORDER BY COUNT(p) DESC")
+    List<Client> findFrequentClients(Pageable pageable);
+
 }
 

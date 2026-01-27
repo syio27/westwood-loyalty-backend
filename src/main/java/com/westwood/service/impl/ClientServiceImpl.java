@@ -372,5 +372,21 @@ public class ClientServiceImpl implements ClientService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<FrequentClientDto> getFrequentClients(int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Client> frequentClients = clientRepository.findFrequentClients(pageable);
+        
+        return frequentClients.stream()
+            .map(client -> new FrequentClientDto(
+                client.getUuid(),
+                client.getPhone(),
+                client.getName(),
+                client.getSurname()
+            ))
+            .collect(Collectors.toList());
+    }
+
 }
 

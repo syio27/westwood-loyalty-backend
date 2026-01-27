@@ -101,5 +101,13 @@ public class ClientController {
         PagedClientSearchResponse response = clientService.searchClients(request);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/frequent")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<List<FrequentClientDto>> getFrequentClients(
+            @RequestParam(defaultValue = "5") int limit) {
+        List<FrequentClientDto> clients = clientService.getFrequentClients(Math.min(limit, 10));
+        return ResponseEntity.ok(clients);
+    }
 }
 
