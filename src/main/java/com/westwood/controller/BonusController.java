@@ -2,9 +2,12 @@ package com.westwood.controller;
 
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.*;
+import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.BonusService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,7 +54,17 @@ public class BonusController {
     public ResponseEntity<BonusBalanceDto> revokeBonus(
             @PathVariable UUID clientId,
             @Valid @RequestBody ManualBonusRevokeRequest request) {
-        BonusBalanceDto balance = bonusService.manualRevokeBonus(clientId, request);
+        Long revokedByUserId = getCurrentUserId();
+        BonusBalanceDto balance = bonusService.manualRevokeBonus(clientId, request, revokedByUserId);
         return ResponseEntity.ok(balance);
+    }
+
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl) {
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            return userDetails.getUser().getId();
+        }
+        throw new RuntimeException("User not authenticated");
     }
 }

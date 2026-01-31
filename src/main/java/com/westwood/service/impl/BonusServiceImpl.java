@@ -12,9 +12,15 @@ import com.westwood.domain.Client;
 import com.westwood.domain.PaymentTransaction;
 import com.westwood.event.BonusGrantedEvent;
 import com.westwood.repository.BonusTypeRepository;
+import com.westwood.domain.BonusConsumption;
+import com.westwood.domain.ManualBonusRevoke;
+import com.westwood.domain.User;
 import com.westwood.repository.BonusEventRepository;
+import com.westwood.repository.BonusConsumptionRepository;
 import com.westwood.repository.ClientRepository;
+import com.westwood.repository.ManualBonusRevokeRepository;
 import com.westwood.repository.PaymentTransactionRepository;
+import com.westwood.repository.UserRepository;
 import com.westwood.service.BonusService;
 import com.westwood.service.EventSourcingService;
 import com.westwood.util.mapper.BonusMapper;
@@ -22,10 +28,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
+
 import com.westwood.domain.BonusRevoked;
 
 @Service
@@ -33,6 +43,9 @@ import com.westwood.domain.BonusRevoked;
 public class BonusServiceImpl implements BonusService {
 
     private final BonusEventRepository bonusEventRepository;
+    private final BonusConsumptionRepository bonusConsumptionRepository;
+    private final ManualBonusRevokeRepository manualBonusRevokeRepository;
+    private final UserRepository userRepository;
     private final BonusTypeRepository bonusTypeRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final ClientRepository clientRepository;
@@ -40,12 +53,18 @@ public class BonusServiceImpl implements BonusService {
     private final BonusMapper bonusMapper;
 
     public BonusServiceImpl(BonusEventRepository bonusEventRepository,
+                           BonusConsumptionRepository bonusConsumptionRepository,
+                           ManualBonusRevokeRepository manualBonusRevokeRepository,
+                           UserRepository userRepository,
                            BonusTypeRepository bonusTypeRepository,
                            PaymentTransactionRepository paymentRepository,
                            ClientRepository clientRepository,
                            EventSourcingService eventSourcingService,
                            BonusMapper bonusMapper) {
         this.bonusEventRepository = bonusEventRepository;
+        this.bonusConsumptionRepository = bonusConsumptionRepository;
+        this.manualBonusRevokeRepository = manualBonusRevokeRepository;
+        this.userRepository = userRepository;
         this.bonusTypeRepository = bonusTypeRepository;
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
@@ -112,10 +131,31 @@ public class BonusServiceImpl implements BonusService {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
-        List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtAsc(client.getId()); // Use internal ID
-        String clientName = com.westwood.util.ClientUtils.getFullName(client);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        List<BonusGranted> nonRevokedGrants = bonusEventRepository.findNonRevokedGrantsByClientIdOrderByCreatedAtAsc(client.getId());
 
-        return bonusMapper.calculateBalanceDto(client.getUuid(), clientName, events); // Use UUID for DTO
+        BigDecimal totalAccumulated = BigDecimal.ZERO;
+        BigDecimal totalUsed = BigDecimal.ZERO;
+        BigDecimal currentBalance = BigDecimal.ZERO;
+
+        for (BonusGranted grant : nonRevokedGrants) {
+            BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+            if (consumed == null) {
+                consumed = BigDecimal.ZERO;
+            }
+            BigDecimal remaining = grant.getBonusAmount().subtract(consumed);
+            totalAccumulated = totalAccumulated.add(grant.getBonusAmount());
+            totalUsed = totalUsed.add(consumed);
+            // Only count remaining for non-expired grants
+            if (grant.getExpiresAt() == null || grant.getExpiresAt().isAfter(now)) {
+                if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                    currentBalance = currentBalance.add(remaining);
+                }
+            }
+        }
+
+        String clientName = com.westwood.util.ClientUtils.getFullName(client);
+        return new BonusBalanceDto(client.getUuid(), clientName, totalAccumulated, totalUsed, currentBalance.max(BigDecimal.ZERO));
     }
 
     @Override
@@ -123,19 +163,16 @@ public class BonusServiceImpl implements BonusService {
     public PagedBonusHistoryResponse getClientBonusHistory(UUID clientId, Integer page, Integer size) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
-        
-        // Fetch all events for the client to identify revoked grants
+
         List<BonusEvent> allEvents = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId());
-        
-        // Collect IDs of GRANTED bonuses that have been revoked
+
         Set<Long> revokedGrantIds = allEvents.stream()
                 .filter(e -> e instanceof BonusRevoked)
                 .map(e -> (BonusRevoked) e)
                 .filter(r -> r.getOriginalBonusGranted() != null)
                 .map(r -> r.getOriginalBonusGranted().getId())
                 .collect(Collectors.toSet());
-        
-        // Filter out GRANTED events that have been revoked (will be shown as REVOKED instead)
+
         List<BonusEvent> filteredEvents = allEvents.stream()
                 .filter(e -> {
                     if (e instanceof BonusGranted) {
@@ -144,23 +181,39 @@ public class BonusServiceImpl implements BonusService {
                     return true;
                 })
                 .collect(Collectors.toList());
-        
-        // Apply pagination manually
+
+        List<ManualBonusRevoke> manualRevokes = manualBonusRevokeRepository.findByClientIdOrderByCreatedAtDesc(client.getId());
+
+        List<Object> combined = new ArrayList<>();
+        combined.addAll(filteredEvents);
+        combined.addAll(manualRevokes);
+        combined.sort(Comparator.comparing(o -> o instanceof BonusEvent
+                        ? ((BonusEvent) o).getCreatedAt()
+                        : ((ManualBonusRevoke) o).getCreatedAt(),
+                Comparator.reverseOrder()));
+
         int pageNum = page != null ? page : 0;
         int pageSize = size != null ? size : 10;
         int start = pageNum * pageSize;
-        int end = Math.min(start + pageSize, filteredEvents.size());
-        
-        List<BonusEventDto> content = filteredEvents.subList(
-                Math.min(start, filteredEvents.size()), 
-                Math.min(end, filteredEvents.size())
-            ).stream()
-            .map(bonusMapper::toDto)
-            .collect(Collectors.toList());
-        
-        long totalElements = filteredEvents.size();
+        int end = Math.min(start + pageSize, combined.size());
+
+        List<BonusEventDto> content = new ArrayList<>();
+        for (int i = start; i < end && i < combined.size(); i++) {
+            Object item = combined.get(i);
+            if (item instanceof BonusGranted) {
+                BonusGranted grant = (BonusGranted) item;
+                BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+                content.add(bonusMapper.toDto(grant, consumed));
+            } else if (item instanceof BonusEvent) {
+                content.add(bonusMapper.toDto((BonusEvent) item));
+            } else {
+                content.add(bonusMapper.toManualRevokeDto((ManualBonusRevoke) item));
+            }
+        }
+
+        long totalElements = combined.size();
         int totalPages = (int) Math.ceil((double) totalElements / pageSize);
-        
+
         return new PagedBonusHistoryResponse(
             content,
             pageNum,
@@ -209,28 +262,52 @@ public class BonusServiceImpl implements BonusService {
 
     @Override
     @Transactional
-    public BonusBalanceDto manualRevokeBonus(UUID clientId, com.westwood.common.dto.ManualBonusRevokeRequest request) {
+    public BonusBalanceDto manualRevokeBonus(UUID clientId, com.westwood.common.dto.ManualBonusRevokeRequest request, Long revokedByUserId) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
-        // Check current balance
         BonusBalanceDto currentBalance = getClientBonusBalance(clientId);
         if (request.getAmount().compareTo(currentBalance.getCurrentBalance()) > 0) {
             throw new IllegalArgumentException("Cannot revoke more than current balance. Current balance: " + currentBalance.getCurrentBalance());
         }
 
-        // Create manual revoke (no original bonus grant linked)
-        BonusRevoked bonusRevoked = new BonusRevoked();
-        bonusRevoked.setClient(client);
-        bonusRevoked.setEventId(UUID.randomUUID());
-        bonusRevoked.setBonusAmount(request.getAmount());
-        bonusRevoked.setPaymentTransaction(null); // No payment associated
-        bonusRevoked.setOriginalBonusGranted(null); // No specific grant being revoked
-        bonusRevoked.setRevokeReason("MANUAL: " + (request.getReason() != null ? request.getReason() : "Ручное списание"));
+        User revokedBy = userRepository.findById(revokedByUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User with id '" + revokedByUserId + "' not found"));
 
-        bonusEventRepository.save(bonusRevoked);
+        ManualBonusRevoke manualRevoke = new ManualBonusRevoke();
+        manualRevoke.setClient(client);
+        manualRevoke.setAmount(request.getAmount());
+        manualRevoke.setReason(request.getReason());
+        manualRevoke.setRevokedBy(revokedBy);
+        manualBonusRevokeRepository.save(manualRevoke);
 
-        // Return updated balance
+        LocalDateTime now = LocalDateTime.now();
+        List<BonusGranted> availableGrants = bonusEventRepository.findAvailableGrantsByClientIdOrderByCreatedAtAsc(client.getId(), now);
+        BigDecimal toAllocate = request.getAmount();
+
+        for (BonusGranted grant : availableGrants) {
+            if (toAllocate.compareTo(BigDecimal.ZERO) <= 0) {
+                break;
+            }
+            BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+            if (consumed == null) {
+                consumed = BigDecimal.ZERO;
+            }
+            BigDecimal remaining = grant.getBonusAmount().subtract(consumed);
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+            BigDecimal take = remaining.min(toAllocate);
+            BonusConsumption consumption = new BonusConsumption();
+            consumption.setBonusGranted(grant);
+            consumption.setAmount(take);
+            consumption.setConsumptionType(BonusConsumption.ConsumptionType.MANUAL_REVOKE);
+            consumption.setPaymentTransaction(null);
+            consumption.setManualRevoke(manualRevoke);
+            bonusConsumptionRepository.save(consumption);
+            toAllocate = toAllocate.subtract(take);
+        }
+
         return getClientBonusBalance(clientId);
     }
 }

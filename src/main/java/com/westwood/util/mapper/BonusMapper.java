@@ -6,6 +6,9 @@ import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusRevoked;
 import com.westwood.domain.BonusUsed;
+import com.westwood.domain.ManualBonusRevoke;
+import com.westwood.domain.PaymentTransaction;
+import com.westwood.domain.User;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
@@ -91,19 +94,27 @@ public class BonusMapper {
         if (event instanceof BonusGranted) {
             BonusGranted granted = (BonusGranted) event;
             dto.setEventType("GRANTED");
-            dto.setPaymentTxId(granted.getPaymentTransaction() != null ? 
-                granted.getPaymentTransaction().getTxId() : null);
+            PaymentTransaction payment = granted.getPaymentTransaction();
+            dto.setPaymentTxId(payment != null ? payment.getTxId() : null);
             dto.setBonusPercentage(granted.getBonusPercentage());
             dto.setPaymentAmount(granted.getPaymentAmount());
             dto.setGrantReason(granted.getGrantReason());
             dto.setExpiresAt(granted.getExpiresAt());
+            setInitiatorFromPayment(dto, payment);
+            if (payment == null) {
+                dto.setInitiatedByUserName("SYSTEM");
+            }
         } else if (event instanceof BonusUsed) {
             BonusUsed used = (BonusUsed) event;
             dto.setEventType("USED");
-            dto.setPaymentTxId(used.getPaymentTransaction() != null ? 
-                used.getPaymentTransaction().getTxId() : null);
+            PaymentTransaction payment = used.getPaymentTransaction();
+            dto.setPaymentTxId(payment != null ? payment.getTxId() : null);
             dto.setOriginalPaymentAmount(used.getOriginalPaymentAmount());
             dto.setFinalPaymentAmount(used.getFinalPaymentAmount());
+            setInitiatorFromPayment(dto, payment);
+            if (payment == null) {
+                dto.setInitiatedByUserName("SYSTEM");
+            }
         } else if (event instanceof BonusRevoked) {
             BonusRevoked revoked = (BonusRevoked) event;
             dto.setEventType("REVOKED");
@@ -119,17 +130,71 @@ public class BonusMapper {
             if (originalGrant != null) {
                 Hibernate.initialize(originalGrant);
                 Hibernate.initialize(originalGrant.getPaymentTransaction());
-                dto.setOriginalPaymentTxId(originalGrant.getPaymentTransaction() != null ? 
+                dto.setOriginalPaymentTxId(originalGrant.getPaymentTransaction() != null ?
                     originalGrant.getPaymentTransaction().getTxId() : null);
-                dto.setPaymentTxId(originalGrant.getPaymentTransaction() != null ? 
+                dto.setPaymentTxId(originalGrant.getPaymentTransaction() != null ?
                     originalGrant.getPaymentTransaction().getTxId() : null);
                 dto.setBonusPercentage(originalGrant.getBonusPercentage());
                 dto.setPaymentAmount(originalGrant.getPaymentAmount());
                 dto.setGrantReason(originalGrant.getGrantReason());
                 dto.setExpiresAt(originalGrant.getExpiresAt());
             }
+            setInitiatorFromPayment(dto, revoked.getPaymentTransaction());
         }
 
+        return dto;
+    }
+
+    private void setInitiatorFromPayment(BonusEventDto dto, PaymentTransaction payment) {
+        if (payment == null) {
+            return;
+        }
+        User enteredBy = payment.getEnteredBy();
+        if (enteredBy != null) {
+            dto.setInitiatedByUserId(enteredBy.getId());
+            dto.setInitiatedByUserName(enteredBy.getFirstName() + " " + enteredBy.getLastName());
+        }
+    }
+
+    /**
+     * Map a BonusGranted to DTO with original and remaining amounts (consumption-based).
+     */
+    public BonusEventDto toDto(BonusGranted grant, BigDecimal consumed) {
+        if (grant == null) {
+            return null;
+        }
+        BigDecimal cons = consumed != null ? consumed : BigDecimal.ZERO;
+        BigDecimal remaining = grant.getBonusAmount().subtract(cons);
+        BonusEventDto dto = toDto(grant);
+        dto.setOriginalAmount(grant.getBonusAmount());
+        dto.setRemainingAmount(remaining);
+        return dto;
+    }
+
+    /**
+     * Map a ManualBonusRevoke to a BonusEventDto for the timeline (eventType MANUAL_REVOKE).
+     */
+    public BonusEventDto toManualRevokeDto(ManualBonusRevoke mbr) {
+        if (mbr == null) {
+            return null;
+        }
+        BonusEventDto dto = new BonusEventDto();
+        dto.setId(mbr.getId());
+        dto.setEventId(null);
+        dto.setClientId(mbr.getClient() != null ? mbr.getClient().getUuid() : null);
+        dto.setClientName(mbr.getClient() != null ? ClientUtils.getFullName(mbr.getClient()) : null);
+        dto.setEventType("MANUAL_REVOKE");
+        dto.setBonusAmount(mbr.getAmount());
+        dto.setCreatedAt(mbr.getCreatedAt());
+        dto.setRevokeReason(mbr.getReason());
+        dto.setRevokedAt(mbr.getCreatedAt());
+        User revokedBy = mbr.getRevokedBy();
+        if (revokedBy != null) {
+            dto.setRevokedByUserId(revokedBy.getId());
+            dto.setRevokedByUserName(revokedBy.getFirstName() + " " + revokedBy.getLastName());
+            dto.setInitiatedByUserId(revokedBy.getId());
+            dto.setInitiatedByUserName(revokedBy.getFirstName() + " " + revokedBy.getLastName());
+        }
         return dto;
     }
 

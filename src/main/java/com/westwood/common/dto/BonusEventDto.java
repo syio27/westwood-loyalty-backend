@@ -16,10 +16,14 @@ public class BonusEventDto {
     private UUID eventId;
     private UUID clientId;
     private String clientName;
-    private String eventType; // "GRANTED" or "USED"
+    private String eventType; // "GRANTED", "USED", "REVOKED", "MANUAL_REVOKE"
     private BigDecimal bonusAmount;
     private LocalDateTime createdAt;
-    
+
+    // For GRANTED events: original grant amount and remaining after consumptions
+    private BigDecimal originalAmount;
+    private BigDecimal remainingAmount;
+
     // For GRANTED events
     private String paymentTxId; // Transaction identifier of the payment that granted the bonus
     private BigDecimal bonusPercentage;
@@ -36,5 +40,13 @@ public class BonusEventDto {
     private String originalPaymentTxId; // Original payment that granted the bonus (for REVOKED events)
     private String refundTxId; // Refund transaction that caused the revocation
     private LocalDateTime revokedAt; // When the bonus was revoked
+
+    // For MANUAL_REVOKE events (audit: who / when / reason)
+    private Long revokedByUserId;
+    private String revokedByUserName;
+
+    // Initiator for any event: who performed the action (payment entered by, refund by, manual revoke by)
+    private Long initiatedByUserId;
+    private String initiatedByUserName;
 }
 

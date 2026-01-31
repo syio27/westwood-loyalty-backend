@@ -2,6 +2,7 @@ package com.westwood.service.impl;
 
 import com.westwood.common.dto.*;
 import com.westwood.common.exception.ResourceNotFoundException;
+import com.westwood.domain.BonusConsumption;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusRevoked;
@@ -13,10 +14,12 @@ import com.westwood.domain.User;
 import com.westwood.event.BonusRevokedEvent;
 import com.westwood.event.PaymentCreatedEvent;
 import com.westwood.event.PaymentRefundedEvent;
+import com.westwood.repository.BonusConsumptionRepository;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.UserRepository;
+import com.westwood.service.BonusService;
 import com.westwood.service.EventBonusService;
 import com.westwood.service.EventSourcingService;
 import com.westwood.service.PaymentService;
@@ -49,6 +52,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final EventSourcingService eventSourcingService;
     private final EventBonusService eventBonusService;
     private final BonusEventRepository bonusEventRepository;
+    private final BonusConsumptionRepository bonusConsumptionRepository;
+    private final BonusService bonusService;
     private final TransactionIdentifierService transactionIdentifierService;
 
     public PaymentServiceImpl(PaymentTransactionRepository paymentRepository,
@@ -58,6 +63,8 @@ public class PaymentServiceImpl implements PaymentService {
                               EventSourcingService eventSourcingService,
                               EventBonusService eventBonusService,
                               BonusEventRepository bonusEventRepository,
+                              BonusConsumptionRepository bonusConsumptionRepository,
+                              BonusService bonusService,
                               TransactionIdentifierService transactionIdentifierService) {
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
@@ -66,6 +73,8 @@ public class PaymentServiceImpl implements PaymentService {
         this.eventSourcingService = eventSourcingService;
         this.eventBonusService = eventBonusService;
         this.bonusEventRepository = bonusEventRepository;
+        this.bonusConsumptionRepository = bonusConsumptionRepository;
+        this.bonusService = bonusService;
         this.transactionIdentifierService = transactionIdentifierService;
     }
 
@@ -258,28 +267,36 @@ public class PaymentServiceImpl implements PaymentService {
         );
         eventSourcingService.appendPaymentRefundedEvent(refundEvent);
 
-        // Find all bonuses granted for the original payment and revoke them
+        // Find all bonuses granted for the original payment; revoke only the remaining (unused) amount per grant
         List<BonusGranted> grantedBonuses = bonusEventRepository.findBonusGrantedByPaymentTxId(originalPayment.getTxId());
-        
+
         for (BonusGranted grantedBonus : grantedBonuses) {
+            BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grantedBonus.getId());
+            if (consumed == null) {
+                consumed = BigDecimal.ZERO;
+            }
+            BigDecimal remaining = grantedBonus.getBonusAmount().subtract(consumed);
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                continue; // Nothing left to revoke for this grant
+            }
+
             BonusRevoked revokedBonus = new BonusRevoked();
             revokedBonus.setClient(grantedBonus.getClient());
             revokedBonus.setEventId(UUID.randomUUID());
-            revokedBonus.setBonusAmount(grantedBonus.getBonusAmount());
-            revokedBonus.setPaymentTransaction(savedRefund); // Link to refund transaction
+            revokedBonus.setBonusAmount(remaining);
+            revokedBonus.setPaymentTransaction(savedRefund);
             revokedBonus.setOriginalBonusGranted(grantedBonus);
             revokedBonus.setRevokeReason("PAYMENT_REFUND");
 
             BonusRevoked savedRevoked = bonusEventRepository.save(revokedBonus);
 
-            // Create and append BonusRevoked event
             BonusRevokedEvent event = new BonusRevokedEvent(
                     savedRevoked.getId(),
                     refundIdentifier,
                     savedRefund.getId(),
                     grantedBonus.getClient().getId(),
                     grantedBonus.getId(),
-                    grantedBonus.getBonusAmount(),
+                    remaining,
                     "PAYMENT_REFUND"
             );
             eventSourcingService.appendBonusRevokedEvent(event);
@@ -505,8 +522,27 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : PaymentTransaction.PaymentMethod.CASH);
         PaymentTransaction savedPayment = paymentRepository.save(payment);
 
-        // Create BonusUsed event if bonuses were used
+        // Allocate bonus use to grants (FIFO) and create BonusConsumption + BonusUsed
         if (bonusAmountUsed.compareTo(BigDecimal.ZERO) > 0) {
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            List<BonusGranted> availableGrants = bonusEventRepository.findAvailableGrantsByClientIdOrderByCreatedAtAsc(client.getId(), now);
+            BigDecimal toAllocate = bonusAmountUsed;
+            for (BonusGranted grant : availableGrants) {
+                if (toAllocate.compareTo(BigDecimal.ZERO) <= 0) break;
+                BigDecimal consumedForGrant = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+                if (consumedForGrant == null) consumedForGrant = BigDecimal.ZERO;
+                BigDecimal remaining = grant.getBonusAmount().subtract(consumedForGrant);
+                if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+                BigDecimal take = toAllocate.min(remaining);
+                BonusConsumption consumption = new BonusConsumption();
+                consumption.setBonusGranted(grant);
+                consumption.setAmount(take);
+                consumption.setConsumptionType(BonusConsumption.ConsumptionType.PAYMENT_USE);
+                consumption.setPaymentTransaction(savedPayment);
+                consumption.setManualRevoke(null);
+                bonusConsumptionRepository.save(consumption);
+                toAllocate = toAllocate.subtract(take);
+            }
             BonusUsed bonusUsed = new BonusUsed();
             bonusUsed.setClient(client);
             bonusUsed.setEventId(UUID.randomUUID());
@@ -514,7 +550,6 @@ public class PaymentServiceImpl implements PaymentService {
             bonusUsed.setPaymentTransaction(savedPayment);
             bonusUsed.setOriginalPaymentAmount(originalAmount);
             bonusUsed.setFinalPaymentAmount(finalAmount);
-
             bonusEventRepository.save(bonusUsed);
         }
 
@@ -556,24 +591,9 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private BigDecimal calculateClientBonusBalance(Long clientId) {
-        List<BonusEvent> events = bonusEventRepository.findByClientIdOrderByCreatedAtAsc(clientId);
-        BigDecimal balance = BigDecimal.ZERO;
-        for (BonusEvent event : events) {
-            if (event instanceof BonusGranted) {
-                // Check if this granted bonus was revoked
-                boolean isRevoked = events.stream()
-                    .filter(e -> e instanceof BonusRevoked)
-                    .map(e -> (BonusRevoked) e)
-                    .anyMatch(r -> r.getOriginalBonusGranted() != null && 
-                        r.getOriginalBonusGranted().getId().equals(event.getId()));
-                if (!isRevoked) {
-                    balance = balance.add(event.getBonusAmount());
-                }
-            } else if (event instanceof BonusUsed) {
-                balance = balance.subtract(event.getBonusAmount());
-            }
-        }
-        return balance;
+        com.westwood.domain.Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new com.westwood.common.exception.ResourceNotFoundException("Client not found"));
+        return bonusService.getClientBonusBalance(client.getUuid()).getCurrentBalance();
     }
 
     @Override

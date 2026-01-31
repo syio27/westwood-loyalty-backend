@@ -67,6 +67,18 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId ORDER BY bg.createdAt DESC")
     List<BonusGranted> findMostRecentBonusGrantedByClientId(@Param("clientId") Long clientId);
 
+    // Available grants for FIFO consumption: non-revoked, non-expired, oldest first
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "AND (bg.expiresAt IS NULL OR bg.expiresAt > :now) ORDER BY bg.createdAt ASC")
+    List<BonusGranted> findAvailableGrantsByClientIdOrderByCreatedAtAsc(@Param("clientId") Long clientId, @Param("now") java.time.LocalDateTime now);
+
+    // All non-revoked grants for a client (for balance calculation; includes expired for totalAccumulated)
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "ORDER BY bg.createdAt ASC")
+    List<BonusGranted> findNonRevokedGrantsByClientIdOrderByCreatedAtAsc(@Param("clientId") Long clientId);
+
     // Analytics queries
     @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate " +
            "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")

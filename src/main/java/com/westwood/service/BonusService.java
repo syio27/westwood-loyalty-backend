@@ -31,8 +31,9 @@ public interface BonusService {
      * Manually revoke bonus from a client
      * @param clientId Client UUID
      * @param request Revoke request with amount and reason
+     * @param revokedByUserId ID of the user performing the revoke (for audit)
      * @return Updated bonus balance
      */
-    BonusBalanceDto manualRevokeBonus(UUID clientId, ManualBonusRevokeRequest request);
+    BonusBalanceDto manualRevokeBonus(UUID clientId, ManualBonusRevokeRequest request, Long revokedByUserId);
 }
 
