@@ -1,5 +1,6 @@
 package com.westwood.common.dto;
 
+import com.westwood.common.validation.PhoneNumber;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -24,5 +25,6 @@ public class UpdateProfileRequest {
     @Size(min = 2, max = 100, message = "Last name must be between 2 and 100 characters")
     private String lastName;
 
+    @PhoneNumber
     private String phone; // Optional field
 }

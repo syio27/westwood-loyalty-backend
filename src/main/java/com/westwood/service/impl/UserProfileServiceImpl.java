@@ -11,6 +11,7 @@ import com.westwood.repository.UserRepository;
 import com.westwood.security.UserDetailsImpl;
 import com.westwood.service.PaymentService;
 import com.westwood.service.UserProfileService;
+import com.westwood.util.PhoneUtils;
 import com.westwood.util.mapper.UserMapper;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -61,7 +62,10 @@ public class UserProfileServiceImpl implements UserProfileService {
         currentUser.setEmail(request.getEmail());
         currentUser.setFirstName(request.getFirstName());
         currentUser.setLastName(request.getLastName());
-        currentUser.setPhone(request.getPhone()); // Can be null
+
+        // Normalize phone number
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        currentUser.setPhone(normalizedPhone); // Can be null
 
         User updatedUser = userRepository.save(currentUser);
         return userMapper.toDto(updatedUser);

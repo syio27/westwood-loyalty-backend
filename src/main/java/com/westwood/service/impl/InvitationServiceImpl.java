@@ -11,6 +11,7 @@ import com.westwood.domain.User;
 import com.westwood.repository.UserRepository;
 import com.westwood.service.EmailService;
 import com.westwood.service.InvitationService;
+import com.westwood.util.PhoneUtils;
 import com.westwood.util.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,9 @@ public class InvitationServiceImpl implements InvitationService {
         // Create user in PENDING_ACTIVATION state
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
+        // normalize phone number
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        user.setPhone(normalizedPhone);
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setAccountStatus(AccountStatus.PENDING_ACTIVATION);

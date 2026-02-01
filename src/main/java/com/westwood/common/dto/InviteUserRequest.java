@@ -1,5 +1,6 @@
 package com.westwood.common.dto;
 
+import com.westwood.common.validation.PhoneNumber;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -21,6 +22,7 @@ public class InviteUserRequest {
 
     @NotBlank(message = "Phone number is required")
     @Size(max = 50, message = "Phone number must not exceed 50 characters")
+    @PhoneNumber
     private String phone;
 
     @NotBlank(message = "First name is required")
