@@ -24,6 +24,7 @@ import com.westwood.service.EventBonusService;
 import com.westwood.service.EventSourcingService;
 import com.westwood.service.PaymentService;
 import com.westwood.service.TransactionIdentifierService;
+import com.westwood.util.PhoneUtils;
 import com.westwood.util.mapper.PaymentMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -308,6 +309,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PagedPaymentSearchResponse searchPayments(PaymentSearchRequest request) {
+        // Normalize Client's phone number and reset it to request
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        request.setPhone(normalizedPhone);
+
         // Build specification from request
         org.springframework.data.jpa.domain.Specification<PaymentTransaction> spec = 
             com.westwood.repository.specification.PaymentTransactionSpecification.buildSpecification(request);

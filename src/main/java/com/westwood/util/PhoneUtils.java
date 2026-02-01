@@ -16,31 +16,40 @@ public final class PhoneUtils {
     }
 
     /**
-     * Normalizes a phone number for storage.
+     * Normalizes a phone number for storage or search.
      * Removes all whitespace, dashes, parentheses, and other non-digit characters except +.
-     * 
+     * Convert 8 to +7, 7 to +7
+     *
      * @param phone the phone number to normalize
      * @return normalized phone number (digits only, with optional leading +)
      */
     public static String normalize(String phone) {
-        if (phone == null || phone.isBlank()) {
-            return phone;
-        }
-        
-        // Keep only digits and +
-        StringBuilder normalized = new StringBuilder();
+        if (phone == null || phone.isBlank()) return phone;
+
+        StringBuilder out = new StringBuilder(16);
         boolean hasPlus = false;
-        
-        for (char c : phone.toCharArray()) {
-            if (c == '+' && !hasPlus && normalized.length() == 0) {
-                normalized.append(c);
+
+        for (int i = 0; i < phone.length(); i++) {
+            char c = phone.charAt(i);
+
+            if (c == '+' && !hasPlus && out.isEmpty()) {
+                out.append('+');
                 hasPlus = true;
-            } else if (Character.isDigit(c)) {
-                normalized.append(c);
+            }
+            else if (c >= '0' && c <= '9') {
+                out.append(c);
             }
         }
-        
-        return normalized.toString();
+
+        // Convert 8XXXXXXXXXX → +7XXXXXXXXXX
+        if (!out.isEmpty() && out.charAt(0) == '8') {
+            out.replace(0, 1, "+7");
+        }
+        else if (!out.isEmpty() && out.charAt(0) != '+') {
+            out.insert(0, '+');
+        }
+
+        return out.toString();
     }
 
     /**

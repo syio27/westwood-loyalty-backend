@@ -280,6 +280,10 @@ public class ClientServiceImpl implements ClientService {
     @Override
     @Transactional(readOnly = true)
     public PagedClientSearchResponse searchClients(ClientSearchRequest request) {
+        // Normalize client's phone
+        String normalizedPhone = PhoneUtils.normalize(request.getPhone());
+        request.setPhone(normalizedPhone);
+
         // Build specification from request
         org.springframework.data.jpa.domain.Specification<Client> spec = 
             com.westwood.repository.specification.ClientSpecification.buildSpecification(request);
