@@ -16,14 +16,22 @@ public class ClientSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // Name filter (search in both name and surname)
+            // Name filter (search in both name and surname, or fullName)
             if (request.getName() != null && !request.getName().trim().isEmpty()) {
-                String namePattern = "%" + request.getName().toLowerCase() + "%";
-                Predicate namePredicate = cb.or(
-                    cb.like(cb.lower(root.get("name")), namePattern),
-                    cb.like(cb.lower(root.get("surname")), namePattern)
-                );
-                predicates.add(namePredicate);
+                String[] parts = request.getName().toLowerCase().trim().split("\\s+");
+                List<Predicate> tokenPredicates = new ArrayList<>();
+                for (String part : parts) {
+                    String pattern = "%" + part + "%";
+
+                    tokenPredicates.add(
+                            cb.or(
+                                    cb.like(cb.lower(root.get("name")), pattern),
+                                    cb.like(cb.lower(root.get("surname")), pattern)
+                            )
+                    );
+                }
+                // Every token must match either name OR surname
+                predicates.add(cb.and(tokenPredicates.toArray(new Predicate[0])));
             }
 
             // Phone filter

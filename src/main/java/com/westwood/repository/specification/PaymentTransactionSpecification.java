@@ -1,6 +1,7 @@
 package com.westwood.repository.specification;
 
 import com.westwood.common.dto.PaymentSearchRequest;
+import com.westwood.domain.Client;
 import com.westwood.domain.PaymentTransaction;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,18 +27,34 @@ public class PaymentTransactionSpecification {
 
             // Client name filter (search in both name and surname)
             if (request.getClientName() != null && !request.getClientName().trim().isEmpty()) {
-                Join<PaymentTransaction, com.westwood.domain.Client> clientJoin = root.join("client");
-                String namePattern = "%" + request.getClientName().toLowerCase() + "%";
-                Predicate namePredicate = cb.or(
-                    cb.like(cb.lower(clientJoin.get("name")), namePattern),
-                    cb.like(cb.lower(clientJoin.get("surname")), namePattern)
-                );
-                predicates.add(namePredicate);
+
+                Join<PaymentTransaction, Client> clientJoin = root.join("client");
+
+                String[] parts = request.getClientName()
+                        .toLowerCase()
+                        .trim()
+                        .split("\\s+");
+
+                List<Predicate> namePredicates = new ArrayList<>();
+
+                for (String part : parts) {
+                    String pattern = "%" + part + "%";
+
+                    namePredicates.add(
+                            cb.or(
+                                    cb.like(cb.lower(clientJoin.get("name")), pattern),
+                                    cb.like(cb.lower(clientJoin.get("surname")), pattern)
+                            )
+                    );
+                }
+
+                // Every token must match either name OR surname
+                predicates.add(cb.and(namePredicates.toArray(new Predicate[0])));
             }
 
             // Phone filter
             if (request.getPhone() != null && !request.getPhone().trim().isEmpty()) {
-                Join<PaymentTransaction, com.westwood.domain.Client> clientJoin = root.join("client");
+                Join<PaymentTransaction, Client> clientJoin = root.join("client");
                 String phonePattern = "%" + request.getPhone() + "%";
                 predicates.add(cb.like(clientJoin.get("phone"), phonePattern));
             }
