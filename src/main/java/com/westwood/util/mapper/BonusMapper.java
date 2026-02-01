@@ -151,7 +151,7 @@ public class BonusMapper {
         }
         User enteredBy = payment.getEnteredBy();
         if (enteredBy != null) {
-            dto.setInitiatedByUserId(enteredBy.getId());
+            dto.setInitiatedByUserId(enteredBy.getUuid());
             dto.setInitiatedByUserName(enteredBy.getFirstName() + " " + enteredBy.getLastName());
         }
     }
@@ -190,9 +190,9 @@ public class BonusMapper {
         dto.setRevokedAt(mbr.getCreatedAt());
         User revokedBy = mbr.getRevokedBy();
         if (revokedBy != null) {
-            dto.setRevokedByUserId(revokedBy.getId());
+            dto.setRevokedByUserId(revokedBy.getUuid());
             dto.setRevokedByUserName(revokedBy.getFirstName() + " " + revokedBy.getLastName());
-            dto.setInitiatedByUserId(revokedBy.getId());
+            dto.setInitiatedByUserId(revokedBy.getUuid());
             dto.setInitiatedByUserName(revokedBy.getFirstName() + " " + revokedBy.getLastName());
         }
         return dto;

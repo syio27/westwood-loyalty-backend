@@ -426,6 +426,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.getStatus(),
             payment.getPaymentMethod(),
             enteredBy != null ? enteredBy.getEmail() : null,
+            enteredBy != null ? enteredBy.getUuid() : null,
             payment.getCreatedAt(),
             refundedPaymentTxId,
             bonusGranted,

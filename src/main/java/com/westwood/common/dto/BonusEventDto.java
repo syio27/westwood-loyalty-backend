@@ -42,11 +42,11 @@ public class BonusEventDto {
     private LocalDateTime revokedAt; // When the bonus was revoked
 
     // For MANUAL_REVOKE events (audit: who / when / reason)
-    private Long revokedByUserId;
+    private UUID revokedByUserId;
     private String revokedByUserName;
 
     // Initiator for any event: who performed the action (payment entered by, refund by, manual revoke by)
-    private Long initiatedByUserId;
+    private UUID initiatedByUserId;
     private String initiatedByUserName;
 }
 
