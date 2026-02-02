@@ -2,14 +2,26 @@ package com.westwood.service;
 
 import com.westwood.common.dto.BonusBalanceDto;
 import com.westwood.common.dto.BonusEventDto;
+import com.westwood.common.dto.BonusesExpiringSoonDto;
 import com.westwood.common.dto.ManualBonusGrantRequest;
 import com.westwood.common.dto.ManualBonusRevokeRequest;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 public interface BonusService {
+
+    /**
+     * Get clients whose bonuses expire within the next 7 days, grouped by expiry date, with notified status.
+     */
+    BonusesExpiringSoonDto getBonusesExpiringSoon();
+
+    /**
+     * Record that the client was notified (e.g. WhatsApp) about bonuses expiring on the given date.
+     */
+    void recordBonusExpiryNotified(UUID clientId, LocalDate expiryDate, Long messageRecordId);
 
     void grantBonus(Long paymentId, Long clientId, BigDecimal paymentAmount); // Internal method, uses Long
 

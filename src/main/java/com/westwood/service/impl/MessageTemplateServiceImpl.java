@@ -110,12 +110,12 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
 
     @Override
     @Transactional(readOnly = true)
-    public PopulatedMessageTemplateDto getPopulatedTemplate(UUID clientId, MessageTemplateType templateType, String paymentTxId) {
+    public PopulatedMessageTemplateDto getPopulatedTemplate(UUID clientId, MessageTemplateType templateType, String paymentTxId, java.time.LocalDate expiryDate) {
         MessageTemplate template = messageTemplateRepository.findFirstByType(templateType)
                 .orElseThrow(() -> new ResourceNotFoundException("Template with type '" + templateType + "' not found"));
 
         String populatedContent = templateVariableResolver.resolveTemplate(
-                template.getContent(), clientId, paymentTxId);
+                template.getContent(), clientId, paymentTxId, templateType, expiryDate);
 
         PopulatedMessageTemplateDto dto = new PopulatedMessageTemplateDto();
         dto.setId(template.getId());
@@ -131,10 +131,12 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
     public List<TemplateVariableDto> getAvailableVariables() {
         return Arrays.asList(
                 new TemplateVariableDto("clientName", "Имя клиента"),
-                new TemplateVariableDto("clientGrantedBonus", "клиент вознагражден бонусом"),
+                new TemplateVariableDto("clientGrantedBonus", "Клиент вознагражден бонусом"),
                 new TemplateVariableDto("clientBonus", "Бонусы клиента"),
                 new TemplateVariableDto("clientPhone", "Телефон клиента"),
                 new TemplateVariableDto("clientBonusExp", "Срок истечения бонусов"),
+                new TemplateVariableDto("daysLeft", "Дней до истечения бонуса"),
+                new TemplateVariableDto("clientBonusExpiringAmount", "Сумма бонусов, истекающих в выбранную дату (или ближайшую)"),
                 new TemplateVariableDto("clientEmail", "Email клиента"),
                 new TemplateVariableDto("clientTotalAmount", "Общая сумма покупок"),
                 new TemplateVariableDto("clientTotalTransactions", "Количество транзакций"),
@@ -157,6 +159,10 @@ public class MessageTemplateServiceImpl implements MessageTemplateService {
         switch (type) {
             case BASIC_CASHBACK_BONUS_GRANT:
                 return "Basic Cashback Bonus Grant";
+            case WELCOME_BONUS:
+                return "Приветственный бонус";
+            case BONUS_EXPIRY:
+                return "Истечение бонусов";
             default:
                 return type.name();
         }

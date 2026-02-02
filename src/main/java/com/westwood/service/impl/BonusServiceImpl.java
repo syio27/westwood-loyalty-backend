@@ -2,9 +2,14 @@ package com.westwood.service.impl;
 
 import com.westwood.common.dto.BonusBalanceDto;
 import com.westwood.common.dto.BonusEventDto;
+import com.westwood.common.dto.BonusExpiringItemDto;
+import com.westwood.common.dto.BonusesExpiringSoonDto;
+import com.westwood.common.dto.ClientBonusExpiringDto;
+import com.westwood.common.dto.ExpiryGroupDto;
 import com.westwood.common.dto.PagedBonusHistoryResponse;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusEvent;
+import com.westwood.domain.BonusExpiryNotification;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusType;
 import com.westwood.domain.BonusTypeEnum;
@@ -17,8 +22,10 @@ import com.westwood.domain.ManualBonusRevoke;
 import com.westwood.domain.User;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.BonusConsumptionRepository;
+import com.westwood.repository.BonusExpiryNotificationRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.ManualBonusRevokeRepository;
+import com.westwood.repository.MessageRecordRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.UserRepository;
 import com.westwood.service.BonusService;
@@ -28,10 +35,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -44,7 +55,9 @@ public class BonusServiceImpl implements BonusService {
 
     private final BonusEventRepository bonusEventRepository;
     private final BonusConsumptionRepository bonusConsumptionRepository;
+    private final BonusExpiryNotificationRepository bonusExpiryNotificationRepository;
     private final ManualBonusRevokeRepository manualBonusRevokeRepository;
+    private final MessageRecordRepository messageRecordRepository;
     private final UserRepository userRepository;
     private final BonusTypeRepository bonusTypeRepository;
     private final PaymentTransactionRepository paymentRepository;
@@ -54,7 +67,9 @@ public class BonusServiceImpl implements BonusService {
 
     public BonusServiceImpl(BonusEventRepository bonusEventRepository,
                            BonusConsumptionRepository bonusConsumptionRepository,
+                           BonusExpiryNotificationRepository bonusExpiryNotificationRepository,
                            ManualBonusRevokeRepository manualBonusRevokeRepository,
+                           MessageRecordRepository messageRecordRepository,
                            UserRepository userRepository,
                            BonusTypeRepository bonusTypeRepository,
                            PaymentTransactionRepository paymentRepository,
@@ -63,7 +78,9 @@ public class BonusServiceImpl implements BonusService {
                            BonusMapper bonusMapper) {
         this.bonusEventRepository = bonusEventRepository;
         this.bonusConsumptionRepository = bonusConsumptionRepository;
+        this.bonusExpiryNotificationRepository = bonusExpiryNotificationRepository;
         this.manualBonusRevokeRepository = manualBonusRevokeRepository;
+        this.messageRecordRepository = messageRecordRepository;
         this.userRepository = userRepository;
         this.bonusTypeRepository = bonusTypeRepository;
         this.paymentRepository = paymentRepository;
@@ -123,6 +140,93 @@ public class BonusServiceImpl implements BonusService {
 
         // If no BASIC_CASHBACK bonus type is configured, throw an exception
         throw new ResourceNotFoundException("No active BASIC_CASHBACK bonus type found. Please configure a cashback bonus type.");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BonusesExpiringSoonDto getBonusesExpiringSoon() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate nowDate = now.toLocalDate();
+        LocalDateTime maxExpiry = now.plusDays(7);
+        List<BonusGranted> grants = bonusEventRepository.findGrantsExpiringBetween(now, maxExpiry);
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        Map<Client, List<BonusExpiringItemDto>> byClient = new LinkedHashMap<>();
+
+        for (BonusGranted grant : grants) {
+            BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+            if (consumed == null) consumed = BigDecimal.ZERO;
+            BigDecimal remaining = grant.getBonusAmount().subtract(consumed);
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            LocalDate expDate = grant.getExpiresAt().toLocalDate();
+            long daysLeft = ChronoUnit.DAYS.between(nowDate, expDate);
+            String grantReason = grant.getGrantReason() != null ? grant.getGrantReason() : "";
+
+            BonusExpiringItemDto item = new BonusExpiringItemDto(
+                    grant.getId(),
+                    remaining,
+                    grant.getBonusAmount(),
+                    grant.getExpiresAt(),
+                    daysLeft,
+                    grantReason
+            );
+
+            byClient.computeIfAbsent(grant.getClient(), k -> new ArrayList<>()).add(item);
+            totalAmount = totalAmount.add(remaining);
+        }
+
+        List<ClientBonusExpiringDto> clients = byClient.entrySet().stream()
+                .map(e -> {
+                    Client c = e.getKey();
+                    List<BonusExpiringItemDto> items = e.getValue().stream()
+                            .sorted(Comparator.comparing(BonusExpiringItemDto::getExpiresAt))
+                            .collect(Collectors.toList());
+                    // Group by expiry date (FIFO: soonest first)
+                    Map<LocalDate, List<BonusExpiringItemDto>> byDate = items.stream()
+                            .collect(Collectors.groupingBy(it -> it.getExpiresAt().toLocalDate(), LinkedHashMap::new, Collectors.toList()));
+                    List<ExpiryGroupDto> expiryGroups = new ArrayList<>();
+                    List<BonusExpiryNotification> notified = bonusExpiryNotificationRepository.findByClientId(c.getId());
+                    Map<LocalDate, LocalDateTime> notifiedByDate = notified.stream()
+                            .collect(Collectors.toMap(BonusExpiryNotification::getExpiryDate, BonusExpiryNotification::getNotifiedAt, (a, b) -> a));
+
+                    for (Map.Entry<LocalDate, List<BonusExpiringItemDto>> entry : byDate.entrySet()) {
+                        LocalDate expDate = entry.getKey();
+                        List<BonusExpiringItemDto> groupItems = entry.getValue();
+                        BigDecimal groupTotal = groupItems.stream()
+                                .map(BonusExpiringItemDto::getRemainingAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        long groupDaysLeft = ChronoUnit.DAYS.between(nowDate, expDate);
+                        LocalDateTime notifiedAt = notifiedByDate.get(expDate);
+                        expiryGroups.add(new ExpiryGroupDto(expDate, groupDaysLeft, groupTotal, notifiedAt, groupItems));
+                    }
+
+                    return new ClientBonusExpiringDto(
+                            c.getUuid(),
+                            com.westwood.util.ClientUtils.getFullName(c),
+                            c.getPhone(),
+                            expiryGroups
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return new BonusesExpiringSoonDto(clients.size(), totalAmount, clients);
+    }
+
+    @Override
+    @Transactional
+    public void recordBonusExpiryNotified(UUID clientId, LocalDate expiryDate, Long messageRecordId) {
+        Client client = clientRepository.findByUuid(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
+        if (bonusExpiryNotificationRepository.findByClientIdAndExpiryDate(client.getId(), expiryDate).isPresent()) {
+            return; // already recorded
+        }
+        BonusExpiryNotification n = new BonusExpiryNotification();
+        n.setClient(client);
+        n.setExpiryDate(expiryDate);
+        n.setNotifiedAt(LocalDateTime.now());
+        n.setMessageRecord(messageRecordId != null ? messageRecordRepository.getReferenceById(messageRecordId) : null);
+        bonusExpiryNotificationRepository.save(n);
     }
 
     @Override

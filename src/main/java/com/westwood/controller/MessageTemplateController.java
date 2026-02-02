@@ -70,8 +70,9 @@ public class MessageTemplateController {
     public ResponseEntity<PopulatedMessageTemplateDto> getPopulatedTemplate(
             @RequestParam MessageTemplateType type,
             @RequestParam UUID clientId,
-            @RequestParam(required = false) String paymentTxId) {
-        PopulatedMessageTemplateDto populatedTemplate = messageTemplateService.getPopulatedTemplate(clientId, type, paymentTxId);
+            @RequestParam(required = false) String paymentTxId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate expiryDate) {
+        PopulatedMessageTemplateDto populatedTemplate = messageTemplateService.getPopulatedTemplate(clientId, type, paymentTxId, expiryDate);
         return ResponseEntity.ok(populatedTemplate);
     }
 

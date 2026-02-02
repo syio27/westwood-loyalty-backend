@@ -64,6 +64,7 @@ public class SpaController implements ErrorController {
         "/clients/**",
         "/bonus-program",
         "/bonus-program/**",
+        "/bonus-expiring",
         "/bonus-management",
         "/bonus-management/**",
         "/payments",

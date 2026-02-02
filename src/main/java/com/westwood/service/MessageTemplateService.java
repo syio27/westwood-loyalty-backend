@@ -20,7 +20,7 @@ public interface MessageTemplateService {
 
     void deleteTemplate(Long id);
 
-    PopulatedMessageTemplateDto getPopulatedTemplate(UUID clientId, MessageTemplateType templateType, String paymentTxId);
+    PopulatedMessageTemplateDto getPopulatedTemplate(UUID clientId, MessageTemplateType templateType, String paymentTxId, java.time.LocalDate expiryDate);
 
     List<TemplateVariableDto> getAvailableVariables();
 

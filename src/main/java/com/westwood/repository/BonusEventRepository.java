@@ -73,6 +73,19 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
            "AND (bg.expiresAt IS NULL OR bg.expiresAt > :now) ORDER BY bg.createdAt ASC")
     List<BonusGranted> findAvailableGrantsByClientIdOrderByCreatedAtAsc(@Param("clientId") Long clientId, @Param("now") java.time.LocalDateTime now);
 
+    // Grants expiring within given days: non-revoked, expiresAt between now and now+days
+    @Query("SELECT bg FROM BonusGranted bg JOIN FETCH bg.client c WHERE " +
+           "bg.expiresAt IS NOT NULL AND bg.expiresAt > :now AND bg.expiresAt <= :maxExpiry " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "ORDER BY bg.expiresAt ASC")
+    List<BonusGranted> findGrantsExpiringBetween(@Param("now") java.time.LocalDateTime now, @Param("maxExpiry") java.time.LocalDateTime maxExpiry);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId " +
+           "AND bg.expiresAt IS NOT NULL AND bg.expiresAt > :now AND bg.expiresAt <= :maxExpiry " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "ORDER BY bg.expiresAt ASC")
+    List<BonusGranted> findGrantsExpiringBetweenForClient(@Param("clientId") Long clientId, @Param("now") java.time.LocalDateTime now, @Param("maxExpiry") java.time.LocalDateTime maxExpiry);
+
     // All non-revoked grants for a client (for balance calculation; includes expired for totalAccumulated)
     @Query("SELECT bg FROM BonusGranted bg WHERE bg.client.id = :clientId " +
            "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +

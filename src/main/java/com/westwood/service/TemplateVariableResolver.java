@@ -5,7 +5,9 @@ import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.Client;
+import com.westwood.domain.MessageTemplateType;
 import com.westwood.domain.PaymentTransaction;
+import com.westwood.repository.BonusConsumptionRepository;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
@@ -13,9 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,24 +38,82 @@ public class TemplateVariableResolver {
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final BonusService bonusService;
     private final BonusEventRepository bonusEventRepository;
+    private final BonusConsumptionRepository bonusConsumptionRepository;
 
     public TemplateVariableResolver(ClientRepository clientRepository,
                                    PaymentTransactionRepository paymentTransactionRepository,
                                    BonusService bonusService,
-                                   BonusEventRepository bonusEventRepository) {
+                                   BonusEventRepository bonusEventRepository,
+                                   BonusConsumptionRepository bonusConsumptionRepository) {
         this.clientRepository = clientRepository;
         this.paymentTransactionRepository = paymentTransactionRepository;
         this.bonusService = bonusService;
         this.bonusEventRepository = bonusEventRepository;
+        this.bonusConsumptionRepository = bonusConsumptionRepository;
     }
 
-    public String resolveTemplate(String templateContent, UUID clientId, String paymentTxId) {
+    /**
+     * Resolve template with optional type and expiry date (for BONUS_EXPIRY: group by date, use forExpiryDate or first group).
+     */
+    public String resolveTemplate(String templateContent, UUID clientId, String paymentTxId, MessageTemplateType templateType, LocalDate forExpiryDate) {
         Client client = clientRepository.findByUuid(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
-        Map<String, String> variables = buildVariableMap(client, paymentTxId);
-
+        Map<String, String> variables;
+        if (templateType == MessageTemplateType.BONUS_EXPIRY) {
+            variables = buildVariableMapForBonusExpiry(client, forExpiryDate);
+        } else {
+            variables = buildVariableMap(client, paymentTxId);
+        }
         return replacePlaceholders(templateContent, variables);
+    }
+
+    public String resolveTemplate(String templateContent, UUID clientId, String paymentTxId) {
+        return resolveTemplate(templateContent, clientId, paymentTxId, null, null);
+    }
+
+    /** BONUS_EXPIRY: group expiring grants by expiry date (FIFO), resolve vars from first group or forExpiryDate group. */
+    private Map<String, String> buildVariableMapForBonusExpiry(Client client, LocalDate forExpiryDate) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("clientName", client.getName() != null ? client.getName() : "");
+        variables.put("clientPhone", client.getPhone() != null ? client.getPhone() : "");
+        variables.put("clientEmail", client.getEmail() != null ? client.getEmail() : "");
+        BonusBalanceDto balance = bonusService.getClientBonusBalance(client.getUuid());
+        variables.put("clientBonus", balance.getCurrentBalance() != null ? balance.getCurrentBalance().toString() : "0");
+        variables.put("clientGrantedBonus", "0");
+        variables.put("clientBonusExp", "");
+        variables.put("daysLeft", "");
+        variables.put("clientBonusExpiringAmount", "0");
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime maxExpiry = now.plusDays(7);
+        List<BonusGranted> grants = bonusEventRepository.findGrantsExpiringBetweenForClient(client.getId(), now, maxExpiry);
+        if (grants.isEmpty()) return variables;
+
+        Map<LocalDate, BigDecimal> byDate = new LinkedHashMap<>();
+        for (BonusGranted grant : grants) {
+            BigDecimal consumed = bonusConsumptionRepository.sumAmountByBonusGrantedId(grant.getId());
+            if (consumed == null) consumed = BigDecimal.ZERO;
+            BigDecimal remaining = grant.getBonusAmount().subtract(consumed);
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) continue;
+            LocalDate d = grant.getExpiresAt().toLocalDate();
+            byDate.merge(d, remaining, BigDecimal::add);
+        }
+        if (byDate.isEmpty()) return variables;
+
+        LocalDate targetDate = forExpiryDate != null && byDate.containsKey(forExpiryDate)
+                ? forExpiryDate
+                : byDate.keySet().iterator().next();
+        BigDecimal groupAmount = byDate.get(targetDate);
+        if (groupAmount == null) groupAmount = BigDecimal.ZERO;
+        long daysLeft = ChronoUnit.DAYS.between(now.toLocalDate(), targetDate);
+        LocalDateTime expDt = targetDate.atStartOfDay();
+
+        variables.put("clientBonusExpiringAmount", groupAmount.setScale(2, java.math.RoundingMode.HALF_UP).toString());
+        variables.put("clientBonusExp", expDt.format(DATETIME_FORMATTER));
+        variables.put("daysLeft", String.valueOf(daysLeft));
+        variables.put("clientGrantedBonus", groupAmount.setScale(2, java.math.RoundingMode.HALF_UP).toString());
+        return variables;
     }
 
     private Map<String, String> buildVariableMap(Client client, String paymentTxId) {
@@ -112,18 +175,23 @@ public class TemplateVariableResolver {
                 BigDecimal bonusAmount = grantedBonus.getBonusAmount();
                 variables.put("clientGrantedBonus", bonusAmount.setScale(2, java.math.RoundingMode.HALF_UP).toString());
                 
-                // Bonus expiration
+                // Bonus expiration and days left
                 if (grantedBonus.getExpiresAt() != null) {
-                    variables.put("clientBonusExp", grantedBonus.getExpiresAt().format(DATETIME_FORMATTER));
+                    LocalDateTime exp = grantedBonus.getExpiresAt();
+                    variables.put("clientBonusExp", exp.format(DATETIME_FORMATTER));
+                    variables.put("daysLeft", String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), exp.toLocalDate())));
                 } else {
                     // Find earliest expiring active bonus if this one doesn't expire
                     LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
                     variables.put("clientBonusExp", earliestExpiration != null 
                             ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                    variables.put("daysLeft", earliestExpiration != null 
+                            ? String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), earliestExpiration.toLocalDate())) : "");
                 }
             } else {
                 variables.put("clientGrantedBonus", "0");
                 variables.put("clientBonusExp", "");
+                variables.put("daysLeft", "");
             }
         } else {
             // No paymentTxId provided - find the most recent bonus granted for this client
@@ -138,23 +206,31 @@ public class TemplateVariableResolver {
                     variables.put("clientGrantedBonus", bonusAmount.setScale(2, java.math.RoundingMode.HALF_UP).toString());
                     
                     if (mostRecentBonus.getExpiresAt() != null) {
-                        variables.put("clientBonusExp", mostRecentBonus.getExpiresAt().format(DATETIME_FORMATTER));
+                        LocalDateTime exp = mostRecentBonus.getExpiresAt();
+                        variables.put("clientBonusExp", exp.format(DATETIME_FORMATTER));
+                        variables.put("daysLeft", String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), exp.toLocalDate())));
                     } else {
                         LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
                         variables.put("clientBonusExp", earliestExpiration != null 
                                 ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                        variables.put("daysLeft", earliestExpiration != null 
+                                ? String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), earliestExpiration.toLocalDate())) : "");
                     }
                 } else {
                     variables.put("clientGrantedBonus", "0");
                     LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
                     variables.put("clientBonusExp", earliestExpiration != null 
                             ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                    variables.put("daysLeft", earliestExpiration != null 
+                            ? String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), earliestExpiration.toLocalDate())) : "");
                 }
             } else {
                 variables.put("clientGrantedBonus", "0");
                 LocalDateTime earliestExpiration = findEarliestBonusExpiration(client.getId());
                 variables.put("clientBonusExp", earliestExpiration != null 
                         ? earliestExpiration.format(DATETIME_FORMATTER) : "");
+                variables.put("daysLeft", earliestExpiration != null 
+                        ? String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now().toLocalDate(), earliestExpiration.toLocalDate())) : "");
             }
         }
 

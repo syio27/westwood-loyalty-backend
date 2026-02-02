@@ -1,6 +1,7 @@
 -- Backfill bonus_consumption for BonusUsed events that have no consumption rows (payments
 -- completed before consumption-based logic was deployed). Allocates used amount FIFO across
 -- non-revoked grants and inserts PAYMENT_USE consumption rows so balance matches reality.
+-- PostgreSQL-only (DO $$ block); loaded only when flyway.locations includes db_postgres (prod).
 DO $$
 DECLARE
   used_rec RECORD;
