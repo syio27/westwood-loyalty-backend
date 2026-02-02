@@ -5,6 +5,7 @@ spring:
 
   flyway:
     locations: classpath:db/migration,classpath:db_postgres
+    ignore-missing-migrations: true  # V32 backfill was run once in prod and removed from project
 
   datasource:
     url: ${DATABASE_URL}
