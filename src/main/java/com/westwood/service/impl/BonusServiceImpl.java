@@ -250,11 +250,12 @@ public class BonusServiceImpl implements BonusService {
             BigDecimal remaining = grant.getBonusAmount().subtract(consumed);
             totalAccumulated = totalAccumulated.add(grant.getBonusAmount());
             totalUsed = totalUsed.add(consumed);
+            
             // Only count remaining for non-expired grants
-            if (grant.getExpiresAt() == null || grant.getExpiresAt().isAfter(now)) {
-                if (remaining.compareTo(BigDecimal.ZERO) > 0) {
-                    currentBalance = currentBalance.add(remaining);
-                }
+            // A bonus is considered expired if expiresAt is not null AND expiresAt <= now
+            boolean isExpired = grant.getExpiresAt() != null && !grant.getExpiresAt().isAfter(now);
+            if (!isExpired && remaining.compareTo(BigDecimal.ZERO) > 0) {
+                currentBalance = currentBalance.add(remaining);
             }
         }
 
