@@ -4,6 +4,7 @@ import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.BonusTypeDto;
 import com.westwood.common.dto.BonusTypeInfoDto;
 import com.westwood.common.dto.CreateBonusTypeRequest;
+import com.westwood.common.dto.RewardConfigStatsDto;
 import com.westwood.common.dto.UpdateBonusTypeRequest;
 import com.westwood.service.BonusTypeService;
 import jakarta.validation.Valid;
@@ -82,6 +83,13 @@ public class BonusTypeController {
     public ResponseEntity<List<BonusTypeInfoDto>> getPreconfiguredBonusTypes() {
         List<BonusTypeInfoDto> preconfiguredTypes = bonusTypeService.getPreconfiguredBonusTypes();
         return ResponseEntity.ok(preconfiguredTypes);
+    }
+
+    @GetMapping("/reward-config-stats")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<RewardConfigStatsDto> getRewardConfigStats() {
+        RewardConfigStatsDto stats = bonusTypeService.getRewardConfigStats();
+        return ResponseEntity.ok(stats);
     }
 
     @GetMapping("/flow/{flow}")

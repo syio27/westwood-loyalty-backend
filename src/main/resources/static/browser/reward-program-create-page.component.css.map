@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;412acdd77cbd97ce2cb81fc4d0df855bca03b7baff73c682df42025dcad8c7c6;/Users/baglan/repo/westwood/westwood-frontend/src/app/features/bonus-program/pages/reward-program-create-page/reward-program-create-page.component.ts"],
+  "sourcesContent": ["\n    .page-wrapper { padding: 2rem; }\n    .create-page { max-width: 800px; margin: 0 auto; }\n    .back-link { margin-bottom: 1rem; }\n    .back-link a { color: #16A34A; text-decoration: none; font-weight: 500; }\n    .page-title { font-size: 1.5rem; margin: 0 0 1rem 0; color: #0f172a; }\n    .placeholder { color: #64748b; margin: 0 0 0.5rem 0; }\n    .meta { font-size: 0.85rem; color: #94a3b8; margin: 0; }\n  "],
+  "mappings": ";AACI,CAAC;AAAe,WAAS;AAAM;AAC/B,CAAC;AAAc,aAAW;AAAO,UAAQ,EAAE;AAAM;AACjD,CAAC;AAAY,iBAAe;AAAM;AAClC,CADC,UACU;AAAI,SAAO;AAAS,mBAAiB;AAAM,eAAa;AAAK;AACxE,CAAC;AAAa,aAAW;AAAQ,UAAQ,EAAE,EAAE,KAAK;AAAG,SAAO;AAAS;AACrE,CAAC;AAAc,SAAO;AAAS,UAAQ,EAAE,EAAE,OAAO;AAAG;AACrD,CAAC;AAAO,aAAW;AAAS,SAAO;AAAS,UAAQ;AAAG;",
+  "names": []
+}

@@ -3,6 +3,7 @@ package com.westwood.service;
 import com.westwood.common.dto.BonusTypeDto;
 import com.westwood.common.dto.BonusTypeInfoDto;
 import com.westwood.common.dto.CreateBonusTypeRequest;
+import com.westwood.common.dto.RewardConfigStatsDto;
 import com.westwood.common.dto.UpdateBonusTypeRequest;
 import com.westwood.domain.BonusTypeEnum;
 
@@ -29,5 +30,10 @@ public interface BonusTypeService {
     BonusTypeDto getActiveBonusByFlow(String flow);
 
     List<BonusTypeInfoDto> getPreconfiguredBonusTypes();
+
+    /**
+     * Stats for the reward program configuration page (active count, avg reward cost % last 30 days, expiration).
+     */
+    RewardConfigStatsDto getRewardConfigStats();
 }
 

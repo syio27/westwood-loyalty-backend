@@ -4,6 +4,8 @@ import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusRevoked;
 import com.westwood.domain.BonusUsed;
+
+import java.time.LocalDateTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -132,7 +134,11 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
             "AND be.event_type IN ('GRANTED', 'USED') " +
             "GROUP BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER) " +
             "ORDER BY CAST(EXTRACT(DAY FROM be.created_at) AS INTEGER)", nativeQuery = true)
-    List<Object[]> getDailyBonusAmountsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
+    List<Object[]> getDailyBonusAmountsByMonth(@Param("startDate") java.time.LocalDateTime startDate,
                                                @Param("endDate") java.time.LocalDateTime endDate);
+
+    /** Sum of bonus amounts redeemed (used) in the given date range. */
+    @Query("SELECT COALESCE(SUM(be.bonusAmount), 0) FROM BonusEvent be WHERE TYPE(be) = BonusUsed AND be.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal sumBonusUsedByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
 }
 

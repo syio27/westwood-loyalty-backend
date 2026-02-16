@@ -3,15 +3,21 @@ package com.westwood.service.impl;
 import com.westwood.common.dto.BonusTypeDto;
 import com.westwood.common.dto.BonusTypeInfoDto;
 import com.westwood.common.dto.CreateBonusTypeRequest;
+import com.westwood.common.dto.RewardConfigStatsDto;
 import com.westwood.common.dto.UpdateBonusTypeRequest;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusType;
 import com.westwood.domain.BonusTypeEnum;
+import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.BonusTypeRepository;
+import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.service.BonusTypeService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,10 +26,18 @@ import java.util.stream.Collectors;
 @Transactional
 public class BonusTypeServiceImpl implements BonusTypeService {
 
-    private final BonusTypeRepository bonusTypeRepository;
+    private static final int REWARD_COST_DAYS = 30;
 
-    public BonusTypeServiceImpl(BonusTypeRepository bonusTypeRepository) {
+    private final BonusTypeRepository bonusTypeRepository;
+    private final BonusEventRepository bonusEventRepository;
+    private final PaymentTransactionRepository paymentTransactionRepository;
+
+    public BonusTypeServiceImpl(BonusTypeRepository bonusTypeRepository,
+                               BonusEventRepository bonusEventRepository,
+                               PaymentTransactionRepository paymentTransactionRepository) {
         this.bonusTypeRepository = bonusTypeRepository;
+        this.bonusEventRepository = bonusEventRepository;
+        this.paymentTransactionRepository = paymentTransactionRepository;
     }
 
     @Override
@@ -145,6 +159,38 @@ public class BonusTypeServiceImpl implements BonusTypeService {
         return Arrays.stream(BonusTypeEnum.values())
                 .map(type -> new BonusTypeInfoDto(type.name(), getRussianDisplayName(type)))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RewardConfigStatsDto getRewardConfigStats() {
+        List<BonusType> activeTypes = bonusTypeRepository.findByEnabledTrue();
+        int activeRewardsCount = activeTypes.size();
+
+        LocalDateTime to = LocalDateTime.now();
+        LocalDateTime from = to.minusDays(REWARD_COST_DAYS);
+        BigDecimal totalSpend = paymentTransactionRepository.calculateTotalRevenueByDateRange(from, to);
+        BigDecimal totalRedeemed = bonusEventRepository.sumBonusUsedByDateRange(from, to);
+
+        Double avgRewardCostPercent30Days = null;
+        if (totalSpend != null && totalSpend.compareTo(BigDecimal.ZERO) > 0 && totalRedeemed != null) {
+            avgRewardCostPercent30Days = totalRedeemed
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(totalSpend, 2, RoundingMode.HALF_UP)
+                    .doubleValue();
+        }
+
+        Integer expirationDays = activeTypes.stream()
+                .map(BonusType::getExpirationDays)
+                .filter(d -> d != null && d > 0)
+                .findFirst()
+                .orElse(null);
+
+        return RewardConfigStatsDto.builder()
+                .activeRewardsCount(activeRewardsCount)
+                .avgRewardCostPercent30Days(avgRewardCostPercent30Days)
+                .expirationDays(expirationDays)
+                .build();
     }
 
     private String getRussianDisplayName(BonusTypeEnum type) {
