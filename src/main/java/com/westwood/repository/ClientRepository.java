@@ -56,5 +56,10 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
            "ORDER BY COUNT(p) DESC")
     List<Client> findFrequentClients(Pageable pageable);
 
+    @Query("SELECT COUNT(c) FROM Client c WHERE c.referrerId IS NOT NULL")
+    Long countReferredClients();
+
+    @Query("SELECT COUNT(DISTINCT c.id) FROM Client c WHERE c.referrerId IS NOT NULL AND EXISTS (SELECT 1 FROM PaymentTransaction p WHERE p.client.id = c.id AND p.status = 'COMPLETED')")
+    Long countReferredClientsWithPurchase();
 }
 

@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;8a279e8d3dc103aedc58a2d70c82bf65b19458647d93f1799788a1ec76c5b6e8;/Users/baglan/repo/westwood/westwood-frontend/src/app/shared/components/toast-container/toast-container.component.ts"],
-  "sourcesContent": ["\n    .toast-container {\n      position: fixed;\n      top: 1.5rem;\n      right: 1.5rem;\n      z-index: 10000;\n      display: flex;\n      flex-direction: column;\n      align-items: flex-end;\n      pointer-events: none;\n    }\n\n    .toast-container app-toast {\n      pointer-events: auto;\n    }\n\n    /* Responsive */\n    @media (max-width: 768px) {\n      .toast-container {\n        top: 1rem;\n        right: 1rem;\n        left: 1rem;\n        align-items: stretch;\n      }\n\n      .toast-container app-toast {\n        max-width: 100%;\n      }\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,YAAU;AACV,OAAK;AACL,SAAO;AACP,WAAS;AACT,WAAS;AACT,kBAAgB;AAChB,eAAa;AACb,kBAAgB;AAClB;AAEA,CAXC,gBAWgB;AACf,kBAAgB;AAClB;AAGA,OAAO,CAAC,SAAS,EAAE;AACjB,GAjBD;AAkBG,SAAK;AACL,WAAO;AACP,UAAM;AACN,iBAAa;AACf;AAEA,GAxBD,gBAwBkB;AACf,eAAW;AACb;AACF;",
-  "names": []
-}

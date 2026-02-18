@@ -9,6 +9,7 @@ import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.service.AnalyticsService;
 import com.westwood.service.BonusService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -117,6 +118,37 @@ public class AnalyticsServiceImpl implements AnalyticsService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
         Long internalClientId = client.getId(); // Convert to internal ID
         return paymentRepository.calculateTotalByClientAndTimeRange(internalClientId, fromDate, toDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TopCustomerDto> getTopCustomers() {
+        int limit = 10;
+        List<Object[]> rows = paymentRepository.findTopClientsByTotalSpent(PageRequest.of(0, limit));
+        if (rows.isEmpty()) return Collections.emptyList();
+        List<Long> clientIds = rows.stream()
+                .map(row -> (Long) row[0])
+                .collect(Collectors.toList());
+        Map<Long, Client> clientsById = clientRepository.findAllById(clientIds).stream()
+                .collect(Collectors.toMap(Client::getId, c -> c));
+        List<TopCustomerDto> result = new ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            Long id = (Long) row[0];
+            BigDecimal totalSpent = (BigDecimal) row[1];
+            long count = row[2] instanceof Long ? (Long) row[2] : ((Number) row[2]).longValue();
+            Client client = clientsById.get(id);
+            if (client == null) continue;
+            BigDecimal aov = count == 0 ? BigDecimal.ZERO : totalSpent.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP);
+            result.add(new TopCustomerDto(
+                    client.getId(),
+                    client.getUuid(),
+                    com.westwood.util.ClientUtils.getFullName(client),
+                    totalSpent.setScale(2, RoundingMode.HALF_UP),
+                    count,
+                    aov
+            ));
+        }
+        return result;
     }
 
     @Override
@@ -469,6 +501,32 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         if (totalBonusesUsed == null) totalBonusesUsed = BigDecimal.ZERO;
 
         return new ClientTotalsDto(totalPayments, totalRevenue, totalBonusesGranted, totalBonusesUsed);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BonusesInCirculationDto getBonusesInCirculation() {
+        BigDecimal total = BigDecimal.ZERO;
+        for (Client client : clientRepository.findAll()) {
+            BigDecimal balance = bonusService.getClientBonusBalance(client.getUuid()).getCurrentBalance();
+            if (balance != null) {
+                total = total.add(balance);
+            }
+        }
+        return new BonusesInCirculationDto(total.setScale(2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SalesByLoyaltyDto getSalesByLoyalty() {
+        Long loyaltyCount = paymentRepository.countCompletedPaymentsWithBonusUsed();
+        if (loyaltyCount == null) loyaltyCount = 0L;
+        Long total = paymentRepository.countAllCompletedTransactions();
+        if (total == null) total = 0L;
+        long nonLoyaltyCount = Math.max(0, total - loyaltyCount);
+        double loyaltyPercent = total == 0 ? 0.0 : (100.0 * loyaltyCount / total);
+        double nonLoyaltyPercent = total == 0 ? 0.0 : (100.0 * nonLoyaltyCount / total);
+        return new SalesByLoyaltyDto(loyaltyCount, nonLoyaltyCount, loyaltyPercent, nonLoyaltyPercent);
     }
 
     private BigDecimal calculatePercentageChange(BigDecimal current, BigDecimal previous) {

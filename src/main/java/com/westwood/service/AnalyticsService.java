@@ -1,6 +1,8 @@
 package com.westwood.service;
 
 import com.westwood.common.dto.*;
+import com.westwood.common.dto.BonusesInCirculationDto;
+import com.westwood.common.dto.SalesByLoyaltyDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,5 +39,14 @@ public interface AnalyticsService {
     OverallTotalsDto getOverallTotals();
 
     ClientTotalsDto getClientTotals(UUID clientId);
+
+    /** Top 10 customers by total spent (COMPLETED payments), sorted by totalSpent DESC. */
+    List<TopCustomerDto> getTopCustomers();
+
+    /** Total amount of bonuses in circulation (active, usable by clients). */
+    BonusesInCirculationDto getBonusesInCirculation();
+
+    /** All-time split of sales: payments with bonus used (loyalty) vs without (non-loyalty). */
+    SalesByLoyaltyDto getSalesByLoyalty();
 }
 

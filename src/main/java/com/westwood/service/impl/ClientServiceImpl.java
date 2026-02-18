@@ -25,10 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -285,12 +282,19 @@ public class ClientServiceImpl implements ClientService {
         request.setPhone(normalizedPhone);
 
         // Build specification from request
-        org.springframework.data.jpa.domain.Specification<Client> spec = 
+        org.springframework.data.jpa.domain.Specification<Client> spec =
             com.westwood.repository.specification.ClientSpecification.buildSpecification(request);
+
+        String sortBy = request.getSortBy() != null ? request.getSortBy().trim().toLowerCase() : "createdat";
+        boolean sortByTotalAmount = "totalamount".equals(sortBy) || "totalspent".equals(sortBy);
+
+        if (sortByTotalAmount) {
+            return searchClientsSortedByTotalSpent(request, spec);
+        }
 
         // Prepare sorting
         Sort sort = prepareSort(request.getSortBy(), request.getSortDirection());
-        
+
         // Prepare pagination with sorting
         Pageable pageable = PageRequest.of(
             request.getPage() != null ? request.getPage() : 0,
@@ -314,6 +318,58 @@ public class ClientServiceImpl implements ClientService {
             clientPage.getTotalPages(),
             clientPage.isFirst(),
             clientPage.isLast()
+        );
+    }
+
+    private PagedClientSearchResponse searchClientsSortedByTotalSpent(ClientSearchRequest request,
+                                                                       org.springframework.data.jpa.domain.Specification<Client> spec) {
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 10;
+        boolean ascending = "ASC".equalsIgnoreCase(request.getSortDirection());
+
+        List<Client> allMatching = clientRepository.findAll(spec, Pageable.unpaged()).getContent();
+        if (allMatching.isEmpty()) {
+            return new PagedClientSearchResponse(List.of(), page, size, 0L, 0, true, true);
+        }
+
+        List<Long> clientIds = allMatching.stream().map(Client::getId).collect(Collectors.toList());
+        List<Object[]> totalSpentRows = paymentTransactionRepository.getTotalSpentByClientIds(clientIds);
+        Map<Long, BigDecimal> totalSpentByClientId = new HashMap<>();
+        for (Long id : clientIds) {
+            totalSpentByClientId.put(id, BigDecimal.ZERO);
+        }
+        for (Object[] row : totalSpentRows) {
+            Long id = (Long) row[0];
+            BigDecimal sum = (BigDecimal) row[1];
+            totalSpentByClientId.put(id, sum != null ? sum : BigDecimal.ZERO);
+        }
+
+        List<Long> sortedIds = clientIds.stream()
+            .sorted(Comparator.comparing(totalSpentByClientId::get, ascending ? Comparator.naturalOrder() : Comparator.reverseOrder()))
+            .collect(Collectors.toList());
+
+        int totalElements = sortedIds.size();
+        int totalPages = (totalElements + size - 1) / size;
+        int fromIndex = Math.min(page * size, totalElements);
+        int toIndex = Math.min(fromIndex + size, totalElements);
+        List<Long> pageIds = fromIndex < toIndex ? sortedIds.subList(fromIndex, toIndex) : List.of();
+
+        if (pageIds.isEmpty()) {
+            return new PagedClientSearchResponse(List.of(), page, size, (long) totalElements, totalPages, page == 0, page >= totalPages - 1);
+        }
+
+        Map<Long, Client> clientMap = clientRepository.findAllById(pageIds).stream().collect(Collectors.toMap(Client::getId, c -> c));
+        List<Client> orderedClients = pageIds.stream().map(clientMap::get).filter(Objects::nonNull).collect(Collectors.toList());
+        List<ClientSearchResultDto> content = orderedClients.stream().map(this::toSearchResultDto).collect(Collectors.toList());
+
+        return new PagedClientSearchResponse(
+            content,
+            page,
+            size,
+            (long) totalElements,
+            totalPages,
+            page == 0,
+            page >= totalPages - 1
         );
     }
 
@@ -379,7 +435,10 @@ public class ClientServiceImpl implements ClientService {
                 return Sort.by(direction, "createdAt");
             case "lastvisit":
                 // For last visit, we'll sort by createdAt as a proxy
-                // A more complex implementation would require a subquery
+                return Sort.by(direction, "createdAt");
+            case "totalamount":
+            case "totalspent":
+                // Handled in searchClientsSortedByTotalSpent
                 return Sort.by(direction, "createdAt");
             default:
                 return Sort.by(direction, "createdAt");

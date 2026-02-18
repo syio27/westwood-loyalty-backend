@@ -72,7 +72,9 @@ public class SpaController implements ErrorController {
         "/profile",
         "/profile/**",
         "/communications",
-        "/communications/**"
+        "/communications/**",
+        "/reports",
+        "/reports/**"
     }, produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     public String forwardToAngular() throws IOException {

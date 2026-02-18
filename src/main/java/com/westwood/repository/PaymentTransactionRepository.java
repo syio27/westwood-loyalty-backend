@@ -3,6 +3,7 @@ package com.westwood.repository;
 import com.westwood.domain.PaymentTransaction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.math.BigDecimal;
+import java.util.Collection;
 
 @Repository
 public interface PaymentTransactionRepository extends JpaRepository<PaymentTransaction, Long>, JpaSpecificationExecutor<PaymentTransaction> {
@@ -72,6 +74,10 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     @Query("SELECT AVG(p.amount) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate")
     BigDecimal calculateAverageAmountByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
 
+    /** Completed payments in date range (for KPI analytics). Excludes REFUND transactions. */
+    @Query("SELECT p FROM PaymentTransaction p JOIN FETCH p.client WHERE p.status = 'COMPLETED' AND p.createdAt BETWEEN :fromDate AND :toDate ORDER BY p.createdAt ASC")
+    List<PaymentTransaction> findCompletedByCreatedAtBetween(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
     // Overall totals (all time)
     @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.status = 'COMPLETED'")
     Long countAllCompletedTransactions();
@@ -93,5 +99,17 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     List<Object[]> getDailyRevenueAndTransactionsByMonth(@Param("startDate") java.time.LocalDateTime startDate, 
                                                           @Param("endDate") java.time.LocalDateTime endDate);
 
+    /** Top clients by total spent (COMPLETED payments). Returns [clientId, totalSpent, paymentsCount]. Use Pageable to limit (e.g. 10). */
+    @Query("SELECT p.client.id, SUM(p.amount), COUNT(p) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' GROUP BY p.client.id ORDER BY SUM(p.amount) DESC")
+    List<Object[]> findTopClientsByTotalSpent(Pageable pageable);
+
+    /** Total spent per client (COMPLETED only) for given client IDs. Returns [clientId, totalSpent]. */
+    @Query("SELECT p.client.id, COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p WHERE p.client.id IN :clientIds AND p.status = 'COMPLETED' GROUP BY p.client.id")
+    List<Object[]> getTotalSpentByClientIds(@Param("clientIds") Collection<Long> clientIds);
+
+    /** Count of COMPLETED payments that have at least one bonus_used record (all time). */
+    @Query(value = "SELECT COUNT(DISTINCT bu.payment_transaction_id) FROM bonus_used bu " +
+            "INNER JOIN payment_transactions p ON p.id = bu.payment_transaction_id WHERE p.status = 'COMPLETED'", nativeQuery = true)
+    Long countCompletedPaymentsWithBonusUsed();
 }
 

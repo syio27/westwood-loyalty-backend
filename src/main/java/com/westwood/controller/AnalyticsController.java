@@ -3,6 +3,7 @@ package com.westwood.controller;
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.*;
 import com.westwood.service.AnalyticsService;
+import com.westwood.service.BonusTypeReportService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +19,11 @@ import java.util.UUID;
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
+    private final BonusTypeReportService bonusTypeReportService;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
+    public AnalyticsController(AnalyticsService analyticsService, BonusTypeReportService bonusTypeReportService) {
         this.analyticsService = analyticsService;
+        this.bonusTypeReportService = bonusTypeReportService;
     }
 
     @GetMapping("/clients/value")
@@ -45,6 +48,13 @@ public class AnalyticsController {
     public ResponseEntity<ClientValueDto> getClientValue(@PathVariable UUID id) {
         ClientValueDto value = analyticsService.getClientValue(id);
         return ResponseEntity.ok(value);
+    }
+
+    @GetMapping("/top-customers")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<List<TopCustomerDto>> getTopCustomers() {
+        List<TopCustomerDto> top = analyticsService.getTopCustomers();
+        return ResponseEntity.ok(top);
     }
 
     // Dashboard analytics endpoints
@@ -93,6 +103,18 @@ public class AnalyticsController {
         return ResponseEntity.ok(bonuses);
     }
 
+    @GetMapping("/bonuses/in-circulation")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<BonusesInCirculationDto> getBonusesInCirculation() {
+        return ResponseEntity.ok(analyticsService.getBonusesInCirculation());
+    }
+
+    @GetMapping("/bonuses/sales-by-loyalty")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<SalesByLoyaltyDto> getSalesByLoyalty() {
+        return ResponseEntity.ok(analyticsService.getSalesByLoyalty());
+    }
+
     @GetMapping("/refunds/daily")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<ReturnsAnalyticsDto> getDailyRefundsCount() {
@@ -128,6 +150,15 @@ public class AnalyticsController {
     public ResponseEntity<ClientTotalsDto> getClientTotals(@PathVariable UUID clientId) {
         ClientTotalsDto totals = analyticsService.getClientTotals(clientId);
         return ResponseEntity.ok(totals);
+    }
+
+    @GetMapping("/bonus-type-report")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<BonusTypeReportDto> getBonusTypeReport(
+            @RequestParam(required = false) Long bonusTypeId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        return ResponseEntity.ok(bonusTypeReportService.getReport(bonusTypeId, from, to));
     }
 }
 

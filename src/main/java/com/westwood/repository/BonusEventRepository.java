@@ -103,6 +103,10 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
            "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
     BigDecimal sumBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
 
+    /** Total bonus amount granted in period (all grants by createdAt; for redemption rate denominator). */
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal sumTotalBonusesGrantedByDateRange(@Param("fromDate") java.time.LocalDateTime fromDate, @Param("toDate") java.time.LocalDateTime toDate);
+
     // Overall totals (all time)
     @Query("SELECT COUNT(bg) FROM BonusGranted bg " +
            "WHERE NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
@@ -140,5 +144,42 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
     /** Sum of bonus amounts redeemed (used) in the given date range. */
     @Query("SELECT COALESCE(SUM(be.bonusAmount), 0) FROM BonusEvent be WHERE TYPE(be) = BonusUsed AND be.createdAt BETWEEN :fromDate AND :toDate")
     BigDecimal sumBonusUsedByDateRange(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+
+    /** Sum of bonus used per payment (for KPI). Returns [paymentId, sum]. */
+    @Query("SELECT bu.paymentTransaction.id, SUM(bu.bonusAmount) FROM BonusUsed bu WHERE bu.paymentTransaction.id IN :paymentIds GROUP BY bu.paymentTransaction.id")
+    List<Object[]> sumBonusUsedGroupByPaymentId(@Param("paymentIds") java.util.Collection<Long> paymentIds);
+
+    /** Sum of bonus granted per payment (for KPI). Returns [paymentId, sum]. */
+    @Query("SELECT bg.paymentTransaction.id, SUM(bg.bonusAmount) FROM BonusGranted bg WHERE bg.paymentTransaction.id IN :paymentIds GROUP BY bg.paymentTransaction.id")
+    List<Object[]> sumBonusGrantedGroupByPaymentId(@Param("paymentIds") java.util.Collection<Long> paymentIds);
+
+    /** Grants that expired within the period (expiresAt in [from, to], not revoked). For burn rate. */
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.expiresAt IS NOT NULL AND bg.expiresAt BETWEEN :from AND :to " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
+    List<BonusGranted> findGrantedExpiredInPeriod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    // --- Bonus type report (filter by bonusTypeId) ---
+
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId AND bg.createdAt BETWEEN :from AND :to")
+    BigDecimal sumTotalBonusesGrantedByBonusTypeIdAndDateRange(@Param("bonusTypeId") Long bonusTypeId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId AND bg.expiresAt IS NOT NULL AND bg.expiresAt BETWEEN :from AND :to " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
+    List<BonusGranted> findGrantedExpiredInPeriodByBonusTypeId(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("bonusTypeId") Long bonusTypeId);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "AND (bg.expiresAt IS NULL OR bg.expiresAt > :now) ORDER BY bg.createdAt ASC")
+    List<BonusGranted> findAvailableGrantsByBonusTypeId(@Param("bonusTypeId") Long bonusTypeId, @Param("now") LocalDateTime now);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
+    List<BonusGranted> findNonRevokedGrantsByBonusTypeId(@Param("bonusTypeId") Long bonusTypeId);
+
+    @Query("SELECT COUNT(DISTINCT bg.client.id) FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId AND bg.createdAt BETWEEN :from AND :to")
+    Long countDistinctClientsGrantedByBonusTypeInPeriod(@Param("bonusTypeId") Long bonusTypeId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId")
+    BigDecimal sumTotalBonusesGrantedByBonusTypeIdAllTime(@Param("bonusTypeId") Long bonusTypeId);
 }
 

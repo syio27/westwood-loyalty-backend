@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;8bc9f9a9fff9b619b12650dada6551978d3770c287e955dbc48430e6b3367bbd;/Users/baglan/repo/westwood/westwood-frontend/src/app/shared/components/dialog/dialog.component.ts"],
-  "sourcesContent": ["\n    .dialog-wrapper ::ng-deep .modal-overlay {\n      z-index: 10001 !important;\n      background-color: rgba(0, 0, 0, 0.6) !important;\n    }\n\n    .dialog-content {\n      color: #1a202c;\n      line-height: 1.6;\n    }\n\n    .dialog-content p {\n      margin: 0;\n    }\n  "],
-  "mappings": ";AACI,CAAC,eAAe,UAAU,CAAC;AACzB,WAAS;AACT,oBAAkB,KAAK,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE;AAClC;AAEA,CAAC;AACC,SAAO;AACP,eAAa;AACf;AAEA,CALC,eAKe;AACd,UAAQ;AACV;",
-  "names": []
-}
