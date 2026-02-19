@@ -63,9 +63,12 @@ public class RewardProgramController {
             @PathVariable UUID uuid,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String tierName) {
+            @RequestParam(required = false) String tierName,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String searchPhone,
+            @RequestParam(required = false) String sort) {
         Pageable pageable = PageRequest.of(page, Math.min(Math.max(size, 1), 100));
-        return ResponseEntity.ok(rewardProgramService.getTieredClients(uuid, pageable, tierName));
+        return ResponseEntity.ok(rewardProgramService.getTieredClients(uuid, pageable, tierName, search, searchPhone, sort));
     }
 
     // ─── Draft Save (per program type) ───────────────────────────────

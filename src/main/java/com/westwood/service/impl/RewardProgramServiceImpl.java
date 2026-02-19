@@ -13,6 +13,7 @@ import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.RewardProgramRepository;
 import com.westwood.service.RewardProgramService;
+import com.westwood.util.ClientUtils;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -415,7 +416,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedTieredClientsResponse getTieredClients(UUID programUuid, Pageable pageable, String tierName) {
+    public PagedTieredClientsResponse getTieredClients(UUID programUuid, Pageable pageable, String tierName, String search, String searchPhone, String sort) {
         RewardProgram program = findByUuidOrThrow(programUuid);
         if (program.getStatus() != RewardProgramStatus.ACTIVE) {
             return emptyTieredClientsResponse(pageable);
@@ -467,8 +468,30 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             rows.removeIf(r -> !tierName.equalsIgnoreCase(r.getTierName()));
         }
 
-        rows.sort(Comparator.comparing(TieredClientRow::getTierSortOrder)
-                .thenComparing(TieredClientRow::getSpend, Comparator.reverseOrder()));
+        if (search != null && !search.isBlank()) {
+            Set<Long> clientIds = rows.stream().map(TieredClientRow::getClientId).collect(Collectors.toSet());
+            Map<Long, Client> clientMapForSearch = clientRepository.findAllById(clientIds).stream()
+                    .collect(Collectors.toMap(Client::getId, c -> c));
+            String searchLower = search.trim().toLowerCase();
+            rows.removeIf(r -> {
+                Client c = clientMapForSearch.get(r.getClientId());
+                String fullName = c != null ? ClientUtils.getFullName(c).toLowerCase() : "";
+                return !fullName.contains(searchLower);
+            });
+        }
+        if (searchPhone != null && !searchPhone.isBlank()) {
+            Set<Long> clientIds = rows.stream().map(TieredClientRow::getClientId).collect(Collectors.toSet());
+            Map<Long, Client> clientMapForPhone = clientRepository.findAllById(clientIds).stream()
+                    .collect(Collectors.toMap(Client::getId, c -> c));
+            String phoneSearch = searchPhone.trim();
+            rows.removeIf(r -> {
+                Client c = clientMapForPhone.get(r.getClientId());
+                String phone = c != null && c.getPhone() != null ? c.getPhone() : "";
+                return !phone.contains(phoneSearch);
+            });
+        }
+
+        sortTieredRows(rows, sort);
 
         int total = rows.size();
         int page = pageable.getPageNumber();
@@ -508,6 +531,27 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .first(page == 0)
                 .last(page >= totalPages - 1 || totalPages == 0)
                 .build();
+    }
+
+    private void sortTieredRows(List<TieredClientRow> rows, String sort) {
+        if (sort == null || sort.isBlank()) {
+            rows.sort(Comparator.comparing(TieredClientRow::getTierSortOrder)
+                    .thenComparing(TieredClientRow::getSpend, Comparator.reverseOrder()));
+            return;
+        }
+        String[] parts = sort.split(",");
+        String property = parts.length > 0 ? parts[0].trim().toLowerCase() : "";
+        boolean desc = parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim());
+
+        Comparator<TieredClientRow> comp;
+        if ("percenttonexttier".equals(property) || "percentToNextTier".equals(property)) {
+            comp = Comparator.comparing(TieredClientRow::getPercentToNextTier,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+        } else {
+            comp = Comparator.comparing(TieredClientRow::getSpend);
+        }
+        if (desc) comp = comp.reversed();
+        rows.sort(Comparator.comparing(TieredClientRow::getTierSortOrder).thenComparing(comp));
     }
 
     private PagedTieredClientsResponse emptyTieredClientsResponse(Pageable pageable) {

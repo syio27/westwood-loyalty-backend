@@ -1,34 +1,37 @@
 package com.westwood.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.error.ErrorController;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * SPA Controller - Serves Angular's index.html for client-side routing
- * Handles all non-API routes to enable Angular Router to work with direct URLs
+ * SPA Controller - Serves Angular's index.html for client-side routing.
+ * In dev (app.static.browser-path = file:...) index is read from filesystem so ng build is picked up without restart.
  */
 @Controller
 public class SpaController implements ErrorController {
 
-    private String indexHtml;
+    @Value("${app.static.browser-path:classpath:/static/browser/}")
+    private String browserPath;
 
-    /**
-     * Load index.html content once on startup
-     */
+    private final ResourceLoader resourceLoader;
+
+    public SpaController(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
     private String getIndexHtml() throws IOException {
-        if (indexHtml == null) {
-            Resource resource = new ClassPathResource("static/browser/index.html");
-            indexHtml = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        }
-        return indexHtml;
+        String base = browserPath.endsWith("/") ? browserPath : browserPath + "/";
+        Resource resource = resourceLoader.getResource(base + "index.html");
+        return new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
 
     /**

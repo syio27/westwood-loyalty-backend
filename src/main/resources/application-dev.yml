@@ -45,7 +45,10 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}
 
 # Application Configuration
+# Serve Angular from filesystem in dev so "ng build --configuration development" is picked up without restart.
 app:
+  static:
+    browser-path: file:./src/main/resources/static/browser/
   frontend:
     url: ${FRONTEND_URL:http://localhost:4200}
   mail:

@@ -72,5 +72,5 @@ public interface RewardProgramService {
      * Get paginated tiered clients for an ACTIVE program with tiers.
      * Clients are tiered by program-period spend only; returns empty when program is not ACTIVE or has no tiers.
      */
-    PagedTieredClientsResponse getTieredClients(UUID programUuid, Pageable pageable, String tierName);
+    PagedTieredClientsResponse getTieredClients(UUID programUuid, Pageable pageable, String tierName, String search, String searchPhone, String sort);
 }

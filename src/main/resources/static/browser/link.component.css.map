@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;16820bc3fbc192bd5119e17edf3b698919ade6d51ad0255484e007a31e857c37;/Users/baglan/repo/westwood/westwood-frontend/src/app/shared/components/link/link.component.ts"],
+  "sourcesContent": ["\n    a {\n      color: #007bff;\n      text-decoration: none;\n      transition: color 0.2s ease;\n      cursor: pointer;\n    }\n\n    a:hover {\n      color: #0056b3;\n      text-decoration: underline;\n    }\n\n    a.underline {\n      text-decoration: underline;\n    }\n\n    a.no-underline:hover {\n      text-decoration: none;\n    }\n  "],
+  "mappings": ";AACI;AACE,SAAO;AACP,mBAAiB;AACjB,cAAY,MAAM,KAAK;AACvB,UAAQ;AACV;AAEA,CAAC;AACC,SAAO;AACP,mBAAiB;AACnB;AAEA,CAAC,CAAC;AACA,mBAAiB;AACnB;AAEA,CAAC,CAAC,YAAY;AACZ,mBAAiB;AACnB;",
+  "names": []
+}
