@@ -44,7 +44,7 @@ class PaymentServiceTest {
     private EventSourcingService eventSourcingService;
 
     @Mock
-    private BonusService bonusService;
+    private EventBonusService eventBonusService;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
@@ -86,7 +86,7 @@ class PaymentServiceTest {
         assertNotNull(result);
         verify(paymentRepository, times(1)).save(any());
         verify(eventSourcingService, times(1)).appendPaymentCreatedEvent(any());
-        verify(bonusService, times(1)).grantBonus(any(), eq(1L), any()); // Internal method still uses Long
+        verify(eventBonusService, times(1)).processPaymentBonuses(any(), eq(clientUuid), any());
     }
 }
 

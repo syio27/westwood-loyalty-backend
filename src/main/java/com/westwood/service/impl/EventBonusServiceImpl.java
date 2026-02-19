@@ -10,6 +10,7 @@ import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.BonusTypeRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
+import com.westwood.service.CashbackCalculationService;
 import com.westwood.service.EventBonusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,33 +33,41 @@ public class EventBonusServiceImpl implements EventBonusService {
     private final ClientRepository clientRepository;
     private final PaymentTransactionRepository paymentRepository;
     private final BonusEventRepository bonusEventRepository;
+    private final CashbackCalculationService cashbackCalculationService;
 
     public EventBonusServiceImpl(
             BonusTypeRepository bonusTypeRepository,
             ClientRepository clientRepository,
             PaymentTransactionRepository paymentRepository,
-            BonusEventRepository bonusEventRepository) {
+            BonusEventRepository bonusEventRepository,
+            CashbackCalculationService cashbackCalculationService) {
         this.bonusTypeRepository = bonusTypeRepository;
         this.clientRepository = clientRepository;
         this.paymentRepository = paymentRepository;
         this.bonusEventRepository = bonusEventRepository;
+        this.cashbackCalculationService = cashbackCalculationService;
     }
 
     @Override
     public void checkAndGrantWelcomeBonus(UUID clientId) {
+        // Legacy: Welcome bonus is now managed via reward programs.
+        // This method is kept for backwards compatibility but will no-op when bonus_types table is empty.
         try {
             BonusType welcomeBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.WELCOME)
                     .orElse(null);
 
             if (welcomeBonus == null) {
-                logger.debug("Welcome bonus is not enabled, skipping for client: {}", clientId);
+                logger.debug("Welcome bonus type not found or disabled, skipping for client: {}", clientId);
+                return;
+            }
+            if (welcomeBonus.getBonusAmount() == null || welcomeBonus.getBonusAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                logger.debug("Welcome bonus has no positive amount configured, skipping for client: {}", clientId);
                 return;
             }
 
             Client client = clientRepository.findByUuid(clientId)
                     .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
-            // Check if welcome bonus already granted (check for existing bonus events)
             boolean alreadyGranted = bonusEventRepository.findByClientIdOrderByCreatedAtDesc(client.getId())
                     .stream()
                     .anyMatch(event -> event instanceof BonusGranted &&
@@ -73,8 +82,7 @@ public class EventBonusServiceImpl implements EventBonusService {
             grantBonus(client, welcomeBonus, null, null, "WELCOME", welcomeBonus.getBonusAmount());
             logger.info("Welcome bonus granted to client: {}", clientId);
         } catch (Exception e) {
-            logger.error("Error granting welcome bonus to client: {}", clientId, e);
-            throw new RuntimeException("Failed to grant welcome bonus", e);
+            logger.error("Error granting welcome bonus to client: {} (non-fatal)", clientId, e);
         }
     }
 
@@ -123,8 +131,7 @@ public class EventBonusServiceImpl implements EventBonusService {
             grantBonus(client, birthdayBonus, null, null, "BIRTHDAY", birthdayBonus.getBonusAmount());
             logger.info("Birthday bonus granted to client: {}", clientId);
         } catch (Exception e) {
-            logger.error("Error granting birthday bonus to client: {}", clientId, e);
-            throw new RuntimeException("Failed to grant birthday bonus", e);
+            logger.error("Error granting birthday bonus to client: {} (non-fatal)", clientId, e);
         }
     }
 
@@ -179,8 +186,7 @@ public class EventBonusServiceImpl implements EventBonusService {
                     "MILESTONE_" + milestoneBonus.getMilestoneThreshold(), bonusAmount);
             logger.info("Milestone bonus granted to client: {} for {}th payment", clientId, paymentCount);
         } catch (Exception e) {
-            logger.error("Error granting milestone bonus to client: {}", clientId, e);
-            throw new RuntimeException("Failed to grant milestone bonus", e);
+            logger.error("Error granting milestone bonus to client: {} (non-fatal)", clientId, e);
         }
     }
 
@@ -209,38 +215,16 @@ public class EventBonusServiceImpl implements EventBonusService {
             grantBonus(referee, referralBonus, null, null, "REFERRAL_REFEREE", referralBonus.getBonusAmount());
             logger.info("Referral bonus granted to referee: {}", refereeId);
         } catch (Exception e) {
-            logger.error("Error granting referral bonus for referrer: {} and referee: {}", referrerId, refereeId, e);
-            throw new RuntimeException("Failed to grant referral bonus", e);
+            logger.error("Error granting referral bonus for referrer: {} and referee: {} (non-fatal)", referrerId, refereeId, e);
         }
     }
 
     @Override
     public void processPaymentBonuses(String paymentTxId, UUID clientId, BigDecimal paymentAmount) {
-        // Check and grant BASIC_CASHBACK
-        try {
-            BonusType cashbackBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.BASIC_CASHBACK)
-                    .orElse(null);
+        logger.info("Processing payment bonuses for payment {} client {}", paymentTxId, clientId);
 
-            if (cashbackBonus != null && cashbackBonus.getBonusPercentage() != null) {
-                Client client = clientRepository.findByUuid(clientId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
-
-                // Only grant cashback for INDIVIDUAL clients
-                if (client.getClientType() == com.westwood.domain.ClientType.INDIVIDUAL) {
-                    PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Payment with txId '" + paymentTxId + "' not found"));
-
-                    BigDecimal bonusAmount = paymentAmount.multiply(cashbackBonus.getBonusPercentage())
-                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-
-                    grantBonus(client, cashbackBonus, payment, paymentAmount, "CASHBACK", bonusAmount);
-                    logger.info("Cashback bonus granted to client: {}", clientId);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Error granting cashback bonus to client: {}", clientId, e);
-            // Don't throw, continue with other bonuses
-        }
+        // Use the new cashback reward program rules (method handles its own errors internally)
+        cashbackCalculationService.processPaymentCashback(paymentTxId, clientId, paymentAmount);
 
         // Check and grant PAYMENT_MILESTONE
         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);

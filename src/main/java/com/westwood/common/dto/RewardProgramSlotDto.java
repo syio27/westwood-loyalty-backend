@@ -20,6 +20,7 @@ import java.util.UUID;
 public class RewardProgramSlotDto {
 
     private RewardProgramType type;
-    private String status; // "NOT_CREATED" | "DRAFT" | "ACTIVE"
-    private UUID uuid;    // non-null when status is DRAFT or ACTIVE
+    private String status; // "NOT_CREATED" | "DRAFT" | "SCHEDULED" | "ACTIVE" | "INACTIVE" | "ARCHIVED"
+    private UUID uuid;    // non-null when status is not NOT_CREATED
+    private String name;  // program name (if set)
 }

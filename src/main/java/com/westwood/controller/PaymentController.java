@@ -3,6 +3,7 @@ package com.westwood.controller;
 import com.westwood.common.constants.ApiConstants;
 import com.westwood.common.dto.*;
 import com.westwood.security.UserDetailsImpl;
+import com.westwood.service.CashbackCalculationService;
 import com.westwood.service.PaymentService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -23,9 +23,11 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final CashbackCalculationService cashbackCalculationService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService, CashbackCalculationService cashbackCalculationService) {
         this.paymentService = paymentService;
+        this.cashbackCalculationService = cashbackCalculationService;
     }
 
     @PostMapping
@@ -96,6 +98,13 @@ public class PaymentController {
     public ResponseEntity<PagedPaymentSearchResponse> searchPayments(@Valid @RequestBody PaymentSearchRequest request) {
         PagedPaymentSearchResponse response = paymentService.searchPayments(request);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/cashback-context/{clientId}")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<CashbackContextDto> getCashbackContext(@PathVariable UUID clientId) {
+        CashbackContextDto context = cashbackCalculationService.getCashbackContext(clientId);
+        return ResponseEntity.ok(context);
     }
 
     @DeleteMapping("/draft/{txId}")

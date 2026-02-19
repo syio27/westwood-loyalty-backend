@@ -3,6 +3,7 @@ package com.westwood.config;
 import com.westwood.common.exception.InsufficientBonusException;
 import com.westwood.common.exception.InvalidActivationTokenException;
 import com.westwood.common.exception.InvalidClientTypeException;
+import com.westwood.common.exception.InvalidProgramStateException;
 import com.westwood.common.exception.InvalidTokenException;
 import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
@@ -54,6 +55,16 @@ public class ExceptionHandlerConfig {
                 LocalDateTime.now()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(InvalidProgramStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidProgramStateException(InvalidProgramStateException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     @ExceptionHandler(InvalidClientTypeException.class)

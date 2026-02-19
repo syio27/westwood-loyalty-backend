@@ -36,6 +36,17 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
                                                              @Param("fromDate") LocalDateTime fromDate,
                                                              @Param("toDate") LocalDateTime toDate);
 
+    /** Sum of COMPLETED, positive-amount payments for one client in date range (for program-period spend). */
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status = 'COMPLETED' AND p.amount > 0 AND p.createdAt BETWEEN :fromDate AND :toDate")
+    BigDecimal calculateCompletedSpendByClientAndTimeRange(@Param("clientId") Long clientId,
+                                                          @Param("fromDate") LocalDateTime fromDate,
+                                                          @Param("toDate") LocalDateTime toDate);
+
+    /** Client id and total spend in range (COMPLETED, amount > 0). For tiered-clients list. */
+    @Query("SELECT p.client.id, COALESCE(SUM(p.amount), 0) FROM PaymentTransaction p WHERE p.status = 'COMPLETED' AND p.amount > 0 AND p.createdAt BETWEEN :fromDate AND :toDate GROUP BY p.client.id")
+    List<Object[]> findClientIdsWithCompletedSpendInTimeRange(@Param("fromDate") LocalDateTime fromDate,
+                                                               @Param("toDate") LocalDateTime toDate);
+
     // Client analytics queries
     @Query("SELECT COUNT(p) FROM PaymentTransaction p WHERE p.client.id = :clientId AND p.status = 'COMPLETED'")
     Long countCompletedTransactionsByClientId(@Param("clientId") Long clientId);

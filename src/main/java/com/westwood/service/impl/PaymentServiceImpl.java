@@ -18,7 +18,12 @@ import com.westwood.repository.BonusConsumptionRepository;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
+import com.westwood.repository.RewardProgramRepository;
 import com.westwood.repository.UserRepository;
+import com.westwood.domain.RewardProgram;
+import com.westwood.domain.RewardProgramType;
+import com.westwood.domain.RewardProgramStatus;
+import com.westwood.domain.CashbackProgramRule;
 import com.westwood.service.BonusService;
 import com.westwood.service.EventBonusService;
 import com.westwood.service.EventSourcingService;
@@ -56,6 +61,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final BonusConsumptionRepository bonusConsumptionRepository;
     private final BonusService bonusService;
     private final TransactionIdentifierService transactionIdentifierService;
+    private final RewardProgramRepository rewardProgramRepository;
 
     public PaymentServiceImpl(PaymentTransactionRepository paymentRepository,
                               ClientRepository clientRepository,
@@ -66,7 +72,8 @@ public class PaymentServiceImpl implements PaymentService {
                               BonusEventRepository bonusEventRepository,
                               BonusConsumptionRepository bonusConsumptionRepository,
                               BonusService bonusService,
-                              TransactionIdentifierService transactionIdentifierService) {
+                              TransactionIdentifierService transactionIdentifierService,
+                              RewardProgramRepository rewardProgramRepository) {
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
         this.userRepository = userRepository;
@@ -77,6 +84,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.bonusConsumptionRepository = bonusConsumptionRepository;
         this.bonusService = bonusService;
         this.transactionIdentifierService = transactionIdentifierService;
+        this.rewardProgramRepository = rewardProgramRepository;
     }
 
     @Override
@@ -515,6 +523,23 @@ public class PaymentServiceImpl implements PaymentService {
             if (clientBonusBalance.compareTo(bonusAmountUsed) < 0) {
                 throw new IllegalArgumentException("Insufficient bonus balance. Available: " + clientBonusBalance + 
                     ", Requested: " + bonusAmountUsed);
+            }
+
+            // Enforce redeem limit percent from active cashback program
+            java.util.Optional<RewardProgram> activeProgram = rewardProgramRepository
+                    .findByTypeAndStatus(RewardProgramType.CASHBACK, RewardProgramStatus.ACTIVE);
+            if (activeProgram.isPresent()) {
+                CashbackProgramRule rule = activeProgram.get().getCashbackRule();
+                if (rule != null && rule.getRedeemLimitPercent() < 100) {
+                    BigDecimal maxRedeemable = originalAmount
+                            .multiply(BigDecimal.valueOf(rule.getRedeemLimitPercent()))
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    if (bonusAmountUsed.compareTo(maxRedeemable) > 0) {
+                        throw new IllegalArgumentException(
+                                "Bonus redemption limited to " + rule.getRedeemLimitPercent() +
+                                "% of purchase. Max: " + maxRedeemable);
+                    }
+                }
             }
         }
 

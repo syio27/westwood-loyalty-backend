@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["angular:styles/component:css;d1debcb139913c35c3a1f8986538f958d3bbe3bad043cc430ce0523fd2c45059;/Users/baglan/repo/westwood/westwood-frontend/src/app/features/bonus-program/pages/create-program-wizard/steps/step-notifications.component.ts"],
+  "sourcesContent": ["\n    .step-content { display: flex; flex-direction: column; gap: 1.25rem; }\n\n    /* Same info banner as tiers: outlined icon, lighter blue border, premium black text */\n    .info-banner {\n      display: flex; align-items: flex-start; gap: 0.75rem;\n      padding: 1rem 1.25rem; border-radius: 8px;\n      background: #f0f9ff; border: 1px solid #bae6fd;\n    }\n    .info-banner-icon {\n      flex-shrink: 0; width: 24px; height: 24px;\n      display: flex; align-items: center; justify-content: center;\n      color: #0ea5e9;\n    }\n    .info-banner-icon svg { width: 22px; height: 22px; }\n    .info-banner-text {\n      margin: 0; font-size: 0.875rem; line-height: 1.5;\n      color: #0f172a; font-weight: 600;\n    }\n\n    .action-row { display: flex; }\n  "],
+  "mappings": ";AACI,CAAC;AAAe,WAAS;AAAM,kBAAgB;AAAQ,OAAK;AAAS;AAGrE,CAAC;AACC,WAAS;AAAM,eAAa;AAAY,OAAK;AAC7C,WAAS,KAAK;AAAS,iBAAe;AACtC,cAAY;AAAS,UAAQ,IAAI,MAAM;AACzC;AACA,CAAC;AACC,eAAa;AAAG,SAAO;AAAM,UAAQ;AACrC,WAAS;AAAM,eAAa;AAAQ,mBAAiB;AACrD,SAAO;AACT;AACA,CALC,iBAKiB;AAAM,SAAO;AAAM,UAAQ;AAAM;AACnD,CAAC;AACC,UAAQ;AAAG,aAAW;AAAU,eAAa;AAC7C,SAAO;AAAS,eAAa;AAC/B;AAEA,CAAC;AAAa,WAAS;AAAM;",
+  "names": []
+}

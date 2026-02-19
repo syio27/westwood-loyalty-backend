@@ -11,12 +11,7 @@ import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.BonusEvent;
 import com.westwood.domain.BonusExpiryNotification;
 import com.westwood.domain.BonusGranted;
-import com.westwood.domain.BonusType;
-import com.westwood.domain.BonusTypeEnum;
 import com.westwood.domain.Client;
-import com.westwood.domain.PaymentTransaction;
-import com.westwood.event.BonusGrantedEvent;
-import com.westwood.repository.BonusTypeRepository;
 import com.westwood.domain.BonusConsumption;
 import com.westwood.domain.ManualBonusRevoke;
 import com.westwood.domain.User;
@@ -26,10 +21,8 @@ import com.westwood.repository.BonusExpiryNotificationRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.ManualBonusRevokeRepository;
 import com.westwood.repository.MessageRecordRepository;
-import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.UserRepository;
 import com.westwood.service.BonusService;
-import com.westwood.service.EventSourcingService;
 import com.westwood.util.mapper.BonusMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,10 +52,7 @@ public class BonusServiceImpl implements BonusService {
     private final ManualBonusRevokeRepository manualBonusRevokeRepository;
     private final MessageRecordRepository messageRecordRepository;
     private final UserRepository userRepository;
-    private final BonusTypeRepository bonusTypeRepository;
-    private final PaymentTransactionRepository paymentRepository;
     private final ClientRepository clientRepository;
-    private final EventSourcingService eventSourcingService;
     private final BonusMapper bonusMapper;
 
     public BonusServiceImpl(BonusEventRepository bonusEventRepository,
@@ -71,10 +61,7 @@ public class BonusServiceImpl implements BonusService {
                            ManualBonusRevokeRepository manualBonusRevokeRepository,
                            MessageRecordRepository messageRecordRepository,
                            UserRepository userRepository,
-                           BonusTypeRepository bonusTypeRepository,
-                           PaymentTransactionRepository paymentRepository,
                            ClientRepository clientRepository,
-                           EventSourcingService eventSourcingService,
                            BonusMapper bonusMapper) {
         this.bonusEventRepository = bonusEventRepository;
         this.bonusConsumptionRepository = bonusConsumptionRepository;
@@ -82,64 +69,8 @@ public class BonusServiceImpl implements BonusService {
         this.manualBonusRevokeRepository = manualBonusRevokeRepository;
         this.messageRecordRepository = messageRecordRepository;
         this.userRepository = userRepository;
-        this.bonusTypeRepository = bonusTypeRepository;
-        this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
-        this.eventSourcingService = eventSourcingService;
         this.bonusMapper = bonusMapper;
-    }
-
-    /**
-     * Grants cashback bonus for a payment using the BASIC_CASHBACK bonus type.
-     * Note: This method is primarily used internally. For new payments, EventBonusService.processPaymentBonuses() is preferred.
-     */
-    @Override
-    public void grantBonus(Long paymentId, Long clientId, BigDecimal paymentAmount) {
-        // Try to use new BonusType system first
-        BonusType cashbackBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.BASIC_CASHBACK)
-                .orElse(null);
-
-        if (cashbackBonus != null && cashbackBonus.getBonusPercentage() != null) {
-            BigDecimal bonusAmount = paymentAmount.multiply(cashbackBonus.getBonusPercentage())
-                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-
-            PaymentTransaction payment = paymentRepository.findById(paymentId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Payment with id '" + paymentId + "' not found"));
-
-            BonusGranted bonusGranted = new BonusGranted();
-            bonusGranted.setClient(payment.getClient());
-            bonusGranted.setEventId(UUID.randomUUID());
-            bonusGranted.setBonusAmount(bonusAmount);
-            bonusGranted.setPaymentTransaction(payment);
-            bonusGranted.setBonusPercentage(cashbackBonus.getBonusPercentage());
-            bonusGranted.setPaymentAmount(paymentAmount);
-            bonusGranted.setBonusType(cashbackBonus);
-            bonusGranted.setGrantReason("CASHBACK");
-
-            // Calculate expiration date if expirationDays is set
-            if (cashbackBonus.getExpirationDays() != null && cashbackBonus.getExpirationDays() > 0) {
-                java.time.LocalDateTime expiresAt = java.time.LocalDateTime.now().plusDays(cashbackBonus.getExpirationDays());
-                bonusGranted.setExpiresAt(expiresAt);
-            }
-
-            BonusGranted savedBonus = bonusEventRepository.save(bonusGranted);
-
-            // Create and append BonusGranted event
-            BonusGrantedEvent event = new BonusGrantedEvent(
-                    savedBonus.getId(),
-                    payment.getTxId(),
-                    paymentId,
-                    clientId,
-                    bonusAmount,
-                    cashbackBonus.getBonusPercentage(),
-                    paymentAmount
-            );
-            eventSourcingService.appendBonusGrantedEvent(event);
-            return;
-        }
-
-        // If no BASIC_CASHBACK bonus type is configured, throw an exception
-        throw new ResourceNotFoundException("No active BASIC_CASHBACK bonus type found. Please configure a cashback bonus type.");
     }
 
     @Override
