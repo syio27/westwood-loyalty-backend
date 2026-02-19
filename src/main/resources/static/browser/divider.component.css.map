@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["angular:styles/component:css;fb39f069548a3e6bbc8507f9f6c9add0040181c838028cbd421f94413829578f;/Users/baglan/repo/westwood/westwood-frontend/src/app/shared/components/divider/divider.component.ts"],
-  "sourcesContent": ["\n    .divider {\n      background-color: #e2e8f0;\n    }\n\n    .divider.horizontal {\n      width: 100%;\n      height: 1px;\n    }\n\n    .divider.vertical {\n      height: 100%;\n      width: 1px;\n    }\n\n    .divider.spaced.horizontal {\n      margin: 1rem 0;\n    }\n\n    .divider.spaced.vertical {\n      margin: 0 1rem;\n    }\n  "],
-  "mappings": ";AACI,CAAC;AACC,oBAAkB;AACpB;AAEA,CAJC,OAIO,CAAC;AACP,SAAO;AACP,UAAQ;AACV;AAEA,CATC,OASO,CAAC;AACP,UAAQ;AACR,SAAO;AACT;AAEA,CAdC,OAcO,CAAC,MAAM,CAVN;AAWP,UAAQ,KAAK;AACf;AAEA,CAlBC,OAkBO,CAJC,MAIM,CATN;AAUP,UAAQ,EAAE;AACZ;",
-  "names": []
-}

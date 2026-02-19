@@ -45,3 +45,5 @@ build/
 logs/
 *.log
 
+### Angular build output (do not commit) ###
+src/main/resources/static/
