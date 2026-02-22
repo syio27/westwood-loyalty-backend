@@ -5,15 +5,18 @@ import com.westwood.common.dto.CreateRewardProgramDraftRequest;
 import com.westwood.common.dto.CreateRewardProgramDraftResponse;
 import com.westwood.common.dto.RewardProgramSlotDto;
 import com.westwood.common.dto.reward.*;
+import com.westwood.domain.RewardProgramType;
 import com.westwood.service.RewardProgramService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,6 +60,16 @@ public class RewardProgramController {
         return ResponseEntity.ok(rewardProgramService.listPrograms());
     }
 
+    @GetMapping("/check-schedule-overlap")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ScheduleOverlapCheckResponse> checkScheduleOverlap(
+            @RequestParam RewardProgramType type,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @RequestParam(required = false) UUID excludeUuid) {
+        return ResponseEntity.ok(rewardProgramService.checkScheduleOverlap(type, start, end, excludeUuid));
+    }
+
     @GetMapping("/{uuid}/tiered-clients")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<PagedTieredClientsResponse> getTieredClients(
@@ -81,6 +94,14 @@ public class RewardProgramController {
         return ResponseEntity.ok(rewardProgramService.saveCashbackDraft(uuid, request));
     }
 
+    @PutMapping("/{uuid}/welcome")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<RewardProgramResponse> saveWelcomeDraft(
+            @PathVariable UUID uuid,
+            @Valid @RequestBody SaveWelcomeProgramDraftRequest request) {
+        return ResponseEntity.ok(rewardProgramService.saveWelcomeDraft(uuid, request));
+    }
+
     // ─── Lifecycle ───────────────────────────────────────────────────
 
     @PostMapping("/{uuid}/launch")
@@ -89,6 +110,14 @@ public class RewardProgramController {
             @PathVariable UUID uuid,
             @Valid @RequestBody LaunchCashbackProgramRequest request) {
         return ResponseEntity.ok(rewardProgramService.launchCashbackProgram(uuid, request));
+    }
+
+    @PostMapping("/{uuid}/launch-welcome")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
+    public ResponseEntity<RewardProgramResponse> launchWelcomeProgram(
+            @PathVariable UUID uuid,
+            @Valid @RequestBody LaunchWelcomeProgramRequest request) {
+        return ResponseEntity.ok(rewardProgramService.launchWelcomeProgram(uuid, request));
     }
 
     @PostMapping("/{uuid}/deactivate")

@@ -20,7 +20,7 @@ import java.util.UUID;
 })
 @Getter
 @Setter
-@ToString(exclude = {"weeklySchedules", "cashbackRule", "cashbackTiers"})
+@ToString(exclude = {"weeklySchedules", "cashbackRule", "cashbackTiers", "welcomeRule"})
 public class RewardProgram extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.VARCHAR)
@@ -67,4 +67,7 @@ public class RewardProgram extends BaseEntity {
     @OneToMany(mappedBy = "program", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC")
     private List<CashbackTier> cashbackTiers = new ArrayList<>();
+
+    @OneToOne(mappedBy = "program", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private WelcomeProgramRule welcomeRule;
 }

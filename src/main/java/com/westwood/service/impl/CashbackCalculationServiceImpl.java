@@ -16,6 +16,7 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,11 +43,36 @@ public class CashbackCalculationServiceImpl implements CashbackCalculationServic
         this.bonusEventRepository = bonusEventRepository;
     }
 
+    /**
+     * Among ACTIVE cashback programs, returns the one effective at the given time: whose period contains now.
+     * When a dated program and an always-on program both cover now, the dated program wins (always-on is ignored during dated program's period).
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RewardProgram> getEffectiveActiveCashbackProgram(LocalDateTime at) {
+        return findEffectiveActiveCashbackProgram(at);
+    }
+
+    private Optional<RewardProgram> findEffectiveActiveCashbackProgram(LocalDateTime now) {
+        List<RewardProgram> active = rewardProgramRepository.findByTypeAndStatusInWithCashbackRule(
+                RewardProgramType.CASHBACK, List.of(RewardProgramStatus.ACTIVE));
+        List<RewardProgram> covering = active.stream()
+                .filter(p -> p.getStartDate() != null && !p.getStartDate().isAfter(now))
+                .filter(p -> p.getEndDate() == null || !p.getEndDate().isBefore(now))
+                .toList();
+        if (covering.isEmpty()) {
+            return Optional.empty();
+        }
+        // Prefer dated program (has end date) over always-on when both cover now; then by start date descending
+        return covering.stream()
+                .max(Comparator.comparing((RewardProgram p) -> p.getEndDate() != null)
+                        .thenComparing(RewardProgram::getStartDate, Comparator.nullsLast(Comparator.reverseOrder())));
+    }
+
     @Override
     public void processPaymentCashback(String paymentTxId, UUID clientId, BigDecimal paymentAmount) {
         try {
-            Optional<RewardProgram> activeProgramOpt =
-                    rewardProgramRepository.findByTypeAndStatusWithCashbackRule(RewardProgramType.CASHBACK, RewardProgramStatus.ACTIVE);
+            Optional<RewardProgram> activeProgramOpt = findEffectiveActiveCashbackProgram(LocalDateTime.now());
 
             if (activeProgramOpt.isEmpty()) {
                 logger.info("No active cashback program found, skipping cashback for payment: {}", paymentTxId);
@@ -54,10 +80,6 @@ public class CashbackCalculationServiceImpl implements CashbackCalculationServic
             }
 
             RewardProgram program = activeProgramOpt.get();
-            if (program.getStartDate() != null && program.getStartDate().isAfter(LocalDateTime.now())) {
-                logger.info("Active cashback program {} has startDate in the future, skipping for payment: {}", program.getUuid(), paymentTxId);
-                return;
-            }
             logger.info("Active cashback program found: {} (uuid={})", program.getName(), program.getUuid());
             CashbackProgramRule rule = program.getCashbackRule();
 
@@ -209,8 +231,7 @@ public class CashbackCalculationServiceImpl implements CashbackCalculationServic
     @Override
     @Transactional(readOnly = true)
     public CashbackContextDto getCashbackContext(UUID clientId) {
-        Optional<RewardProgram> activeProgramOpt =
-                rewardProgramRepository.findByTypeAndStatus(RewardProgramType.CASHBACK, RewardProgramStatus.ACTIVE);
+        Optional<RewardProgram> activeProgramOpt = findEffectiveActiveCashbackProgram(LocalDateTime.now());
 
         if (activeProgramOpt.isEmpty()) {
             CashbackContextDto dto = new CashbackContextDto();

@@ -9,6 +9,10 @@ import com.westwood.common.exception.ResourceAlreadyExistsException;
 import com.westwood.common.exception.ResourceNotFoundException;
 import com.westwood.domain.*;
 import com.westwood.domain.Client;
+import com.westwood.domain.FirstPayMode;
+import com.westwood.domain.GrantTrigger;
+import com.westwood.domain.WelcomeGrantType;
+import com.westwood.domain.WelcomeProgramRule;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.RewardProgramRepository;
@@ -22,7 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,49 +58,46 @@ public class RewardProgramServiceImpl implements RewardProgramService {
     @Override
     @Transactional(readOnly = true)
     public List<RewardProgramSlotDto> getSlots() {
-        List<RewardProgram> all = rewardProgramRepository.findAll();
-        Map<RewardProgramType, RewardProgram> byType = all.stream()
-                .collect(Collectors.toMap(RewardProgram::getType, p -> p, (a, b) -> a));
-
         List<RewardProgramSlotDto> slots = new ArrayList<>();
         for (RewardProgramType type : RewardProgramType.values()) {
-            RewardProgram program = byType.get(type);
-            if (program == null) {
+            List<RewardProgram> ofType = rewardProgramRepository.findAllByType(type);
+            if (ofType.isEmpty()) {
                 slots.add(RewardProgramSlotDto.builder()
                         .type(type)
                         .status(NOT_CREATED)
                         .uuid(null)
                         .build());
             } else {
+                // Prefer ACTIVE > SCHEDULED > DRAFT > INACTIVE > ARCHIVED for display
+                RewardProgram preferred = ofType.stream()
+                        .max(Comparator.comparingInt(p -> priorityForSlot(p.getStatus())))
+                        .orElse(ofType.get(0));
                 slots.add(RewardProgramSlotDto.builder()
                         .type(type)
-                        .status(program.getStatus().name())
-                        .uuid(program.getUuid())
-                        .name(program.getName())
+                        .status(preferred.getStatus().name())
+                        .uuid(preferred.getUuid())
+                        .name(preferred.getName())
                         .build());
             }
         }
         return slots;
     }
 
+    private static int priorityForSlot(RewardProgramStatus status) {
+        switch (status) {
+            case ACTIVE: return 5;
+            case SCHEDULED: return 4;
+            case DRAFT: return 3;
+            case INACTIVE: return 2;
+            case ARCHIVED: return 1;
+            default: return 0;
+        }
+    }
+
     @Override
     public CreateRewardProgramDraftResponse createDraft(CreateRewardProgramDraftRequest request) {
         RewardProgramType type = request.getType();
-        var existing = rewardProgramRepository.findByType(type);
-        if (existing.isPresent()) {
-            RewardProgram p = existing.get();
-            if (p.getStatus() != RewardProgramStatus.DRAFT) {
-                throw new ResourceAlreadyExistsException(
-                        "Reward program for type " + type + " already exists with status " + p.getStatus()
-                                + ". Cannot create a new draft.");
-            }
-            return CreateRewardProgramDraftResponse.builder()
-                    .uuid(p.getUuid())
-                    .type(p.getType())
-                    .status(p.getStatus())
-                    .build();
-        }
-
+        // Allow multiple programs per type: always create a new draft.
         RewardProgram program = new RewardProgram();
         program.setUuid(UUID.randomUUID());
         program.setType(type);
@@ -117,7 +122,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
     @Override
     @Transactional(readOnly = true)
     public List<RewardProgramListItem> listPrograms() {
-        return rewardProgramRepository.findAllWithCashbackRule().stream()
+        return rewardProgramRepository.findAllWithRules().stream()
                 .map(this::toListItem)
                 .collect(Collectors.toList());
     }
@@ -180,6 +185,42 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         return toResponse(rewardProgramRepository.save(program));
     }
 
+    @Override
+    public RewardProgramResponse saveWelcomeDraft(UUID uuid, SaveWelcomeProgramDraftRequest request) {
+        RewardProgram program = findDraftOrThrow(uuid);
+        assertWelcomeType(program);
+
+        if (request.getName() != null) {
+            program.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            program.setDescription(request.getDescription());
+        }
+        if (request.getStartDate() != null) {
+            program.setStartDate(request.getStartDate());
+        }
+        program.setEndDate(request.getEndDate());
+
+        WelcomeProgramRule rule = ensureWelcomeRule(program);
+        if (request.getGrantType() != null) {
+            rule.setGrantType(request.getGrantType());
+        }
+        if (request.getGrantValue() != null) {
+            rule.setGrantValue(request.getGrantValue());
+        }
+        if (request.getBonusLifespanDays() != null) {
+            rule.setBonusLifespanDays(request.getBonusLifespanDays());
+        }
+        if (request.getGrantTrigger() != null) {
+            rule.setGrantTrigger(request.getGrantTrigger());
+        }
+        if (request.getFirstPayMode() != null) {
+            rule.setFirstPayMode(request.getFirstPayMode());
+        }
+
+        return toResponse(rewardProgramRepository.save(program));
+    }
+
     // ─── Lifecycle ───────────────────────────────────────────────────
 
     @Override
@@ -201,7 +242,29 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             validateProgramReadyForLaunch(program);
         }
 
-        if (request.isImmediate()) {
+        // "Launch now" from SCHEDULED: activate today and keep end date (periodic program that starts now)
+        if (launchNowFromScheduled) {
+            program.setStatus(RewardProgramStatus.ACTIVE);
+            program.setStartDate(LocalDateTime.now());
+            return toResponse(rewardProgramRepository.save(program));
+        }
+
+        // Treat as always-on only when immediate and no end date; if end date is set, always use periodic path
+        boolean effectiveImmediate = request.isImmediate()
+                && (request.getEndDate() == null || request.getEndDate().isBlank());
+
+        if (effectiveImmediate) {
+            // Only one always-on program per type allowed
+            ScheduleOverlapCheckResponse alwaysOnCheck = checkScheduleOverlap(
+                    program.getType(), LocalDateTime.now(), null, program.getUuid());
+            if (alwaysOnCheck.isOverlaps() && Boolean.TRUE.equals(alwaysOnCheck.getAlwaysOnConflict())) {
+                throw new InvalidProgramStateException(
+                        "Only one always-on program per type is allowed. An always-on "
+                                + (program.getType() == RewardProgramType.CASHBACK ? "cashback" : "welcome")
+                                + " program already exists"
+                                + (alwaysOnCheck.getOverlappingProgramName() != null ? ": " + alwaysOnCheck.getOverlappingProgramName() : ".")
+                                + " Schedule a periodic program with start and end dates instead.");
+            }
             program.setStatus(RewardProgramStatus.ACTIVE);
             program.setStartDate(LocalDateTime.now());
         } else {
@@ -209,10 +272,82 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 throw new InvalidProgramStateException(
                         "Start date must be set to schedule a program.");
             }
-            // Allow start date up to 5 minutes in the past to account for timezone/clock skew (e.g. "today in 30 mins" in user TZ)
-            if (program.getStartDate().isBefore(LocalDateTime.now().minusMinutes(5))) {
+            // Validate using instant (point in time) so client timezone is respected (e.g. user selects "today 5:30" in their TZ)
+            Instant startInstant = parseStartDateToInstant(request);
+            if (startInstant != null && startInstant.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {
                 throw new InvalidProgramStateException(
                         "Start date must be in the future for scheduled launch.");
+            }
+            // Only one ACTIVE/SCHEDULED program of same type in the same period (always-on exception: new program with end date is allowed)
+            ScheduleOverlapCheckResponse overlap = checkScheduleOverlap(
+                    program.getType(), program.getStartDate(), program.getEndDate(), program.getUuid());
+            if (overlap.isOverlaps()) {
+                throw new InvalidProgramStateException(
+                        "This program's period overlaps with an existing program of the same type: "
+                                + (overlap.getOverlappingProgramName() != null ? overlap.getOverlappingProgramName() : "unknown")
+                                + ". Only one program can be active or scheduled in the same period.");
+            }
+            program.setStatus(RewardProgramStatus.SCHEDULED);
+        }
+
+        return toResponse(rewardProgramRepository.save(program));
+    }
+
+    @Override
+    public RewardProgramResponse launchWelcomeProgram(UUID uuid, LaunchWelcomeProgramRequest request) {
+        RewardProgram program = findByUuidOrThrow(uuid);
+        assertWelcomeType(program);
+
+        boolean launchNowFromScheduled = program.getStatus() == RewardProgramStatus.SCHEDULED && request.isImmediate();
+
+        if (program.getStatus() != RewardProgramStatus.DRAFT && !launchNowFromScheduled) {
+            throw new InvalidProgramStateException(
+                    "Program can only be launched from DRAFT, or from SCHEDULED when launching now. Current: " + program.getStatus());
+        }
+
+        applyWelcomeData(program, request);
+
+        if (!launchNowFromScheduled) {
+            validateProgramReadyForLaunch(program);
+        }
+
+        // "Launch now" from SCHEDULED: activate today and keep end date (periodic program that starts now)
+        if (launchNowFromScheduled) {
+            program.setStatus(RewardProgramStatus.ACTIVE);
+            program.setStartDate(LocalDateTime.now());
+            return toResponse(rewardProgramRepository.save(program));
+        }
+
+        // Treat as always-on only when immediate and no end date; if end date is set, always use periodic path
+        boolean effectiveImmediate = request.isImmediate()
+                && (request.getEndDate() == null || request.getEndDate().isBlank());
+
+        if (effectiveImmediate) {
+            // Only one always-on program per type allowed
+            ScheduleOverlapCheckResponse alwaysOnCheck = checkScheduleOverlap(
+                    program.getType(), LocalDateTime.now(), null, program.getUuid());
+            if (alwaysOnCheck.isOverlaps() && Boolean.TRUE.equals(alwaysOnCheck.getAlwaysOnConflict())) {
+                throw new InvalidProgramStateException(
+                        "Only one always-on program per type is allowed. An always-on welcome program already exists"
+                                + (alwaysOnCheck.getOverlappingProgramName() != null ? ": " + alwaysOnCheck.getOverlappingProgramName() : ".")
+                                + " Schedule a periodic program with start and end dates instead.");
+            }
+            program.setStatus(RewardProgramStatus.ACTIVE);
+            program.setStartDate(LocalDateTime.now());
+        } else {
+            if (program.getStartDate() == null) {
+                throw new InvalidProgramStateException("Start date must be set to schedule a program.");
+            }
+            Instant startInstant = parseStartDateToInstantWelcome(request);
+            if (startInstant != null && startInstant.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {
+                throw new InvalidProgramStateException("Start date must be in the future for scheduled launch.");
+            }
+            ScheduleOverlapCheckResponse overlap = checkScheduleOverlap(
+                    program.getType(), program.getStartDate(), program.getEndDate(), program.getUuid());
+            if (overlap.isOverlaps()) {
+                throw new InvalidProgramStateException(
+                        "This program's period overlaps with an existing program of the same type: "
+                                + (overlap.getOverlappingProgramName() != null ? overlap.getOverlappingProgramName() : "unknown"));
             }
             program.setStatus(RewardProgramStatus.SCHEDULED);
         }
@@ -262,6 +397,66 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         rewardProgramRepository.delete(program);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RewardProgram> getEffectiveActiveWelcomeProgram(LocalDateTime at) {
+        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithWelcomeRule(
+                RewardProgramType.WELCOME, List.of(RewardProgramStatus.ACTIVE));
+        return candidates.stream()
+                .filter(p -> p.getStartDate() != null && !at.isBefore(p.getStartDate()))
+                .filter(p -> p.getEndDate() == null || !at.isAfter(p.getEndDate()))
+                .findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ScheduleOverlapCheckResponse checkScheduleOverlap(RewardProgramType type,
+                                                             LocalDateTime start, LocalDateTime end, UUID excludeUuid) {
+        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusIn(type,
+                List.of(RewardProgramStatus.ACTIVE, RewardProgramStatus.SCHEDULED));
+        String alwaysOnName = null;
+        for (RewardProgram other : candidates) {
+            if (other.getUuid().equals(excludeUuid)) {
+                continue;
+            }
+            LocalDateTime otherStart = other.getStartDate();
+            if (otherStart == null) {
+                continue;
+            }
+            boolean otherAlwaysOn = other.getEndDate() == null;
+            // New program has end date and existing is always-on → allowed (always-on ignored during new program's period)
+            if (otherAlwaysOn && end != null) {
+                if (alwaysOnName == null) {
+                    alwaysOnName = other.getName() != null && !other.getName().isBlank() ? other.getName() : "Always-on program";
+                }
+                continue;
+            }
+            // Both always-on (new has no end) and other has no end → overlap (only one always-on allowed)
+            if (otherAlwaysOn && end == null) {
+                return ScheduleOverlapCheckResponse.builder()
+                        .overlaps(true)
+                        .overlappingProgramName(other.getName() != null ? other.getName() : "Always-on program")
+                        .alwaysOnConflict(true)
+                        .build();
+            }
+            // Dated overlap: new [start, end] vs other [otherStart, otherEnd]
+            LocalDateTime otherEnd = other.getEndDate();
+            boolean overlaps = start.isBefore(otherEnd != null ? otherEnd : LocalDateTime.MAX)
+                    && (end != null ? end : LocalDateTime.MAX).isAfter(otherStart);
+            if (overlaps) {
+                return ScheduleOverlapCheckResponse.builder()
+                        .overlaps(true)
+                        .overlappingProgramName(other.getName() != null ? other.getName() : "Program")
+                        .alwaysOnConflict(false)
+                        .build();
+            }
+        }
+        return ScheduleOverlapCheckResponse.builder()
+                .overlaps(false)
+                .alwaysOnProgramName(alwaysOnName)
+                .build();
+    }
+
     // ─── Private Helpers ─────────────────────────────────────────────
 
     private RewardProgram findByUuidOrThrow(UUID uuid) {
@@ -285,6 +480,104 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         }
     }
 
+    private void assertWelcomeType(RewardProgram program) {
+        if (program.getType() != RewardProgramType.WELCOME) {
+            throw new IllegalArgumentException(
+                    "This operation is only valid for WELCOME programs. Type: " + program.getType());
+        }
+    }
+
+    private WelcomeProgramRule ensureWelcomeRule(RewardProgram program) {
+        if (program.getWelcomeRule() == null) {
+            WelcomeProgramRule rule = new WelcomeProgramRule();
+            rule.setProgram(program);
+            rule.setGrantType(WelcomeGrantType.POINTS);
+            rule.setGrantValue(BigDecimal.ZERO);
+            rule.setGrantTrigger(GrantTrigger.ON_JOIN);
+            program.setWelcomeRule(rule);
+        }
+        return program.getWelcomeRule();
+    }
+
+    private Instant parseStartDateToInstantWelcome(LaunchWelcomeProgramRequest request) {
+        String s = request.getStartDate();
+        if (s == null || s.isBlank()) return null;
+        try {
+            return Instant.parse(s);
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(s, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        .atZone(ZoneId.systemDefault()).toInstant();
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    private void applyWelcomeData(RewardProgram program, LaunchWelcomeProgramRequest request) {
+        if (request.getName() != null) {
+            program.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            program.setDescription(request.getDescription());
+        }
+        if (request.getStartDate() != null && !request.getStartDate().isBlank()) {
+            program.setStartDate(parseIsoToLocalDateTime(request.getStartDate()));
+        }
+        if (request.getEndDate() != null && !request.getEndDate().isBlank()) {
+            program.setEndDate(parseIsoToLocalDateTime(request.getEndDate()));
+        } else {
+            program.setEndDate(null);
+        }
+
+        WelcomeProgramRule rule = ensureWelcomeRule(program);
+        if (request.getGrantType() != null) {
+            rule.setGrantType(request.getGrantType());
+        }
+        if (request.getGrantValue() != null) {
+            rule.setGrantValue(request.getGrantValue());
+        }
+        if (request.getBonusLifespanDays() != null) {
+            rule.setBonusLifespanDays(request.getBonusLifespanDays());
+        }
+        if (request.getGrantTrigger() != null) {
+            rule.setGrantTrigger(request.getGrantTrigger());
+        }
+        if (request.getFirstPayMode() != null) {
+            rule.setFirstPayMode(request.getFirstPayMode());
+        }
+    }
+
+    /** Parse request start date (ISO-8601) to Instant for timezone-safe "in the future" validation. */
+    private Instant parseStartDateToInstant(LaunchCashbackProgramRequest request) {
+        String s = request.getStartDate();
+        if (s == null || s.isBlank()) return null;
+        try {
+            return Instant.parse(s);
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(s, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                        .atZone(ZoneId.systemDefault()).toInstant();
+            } catch (Exception e2) {
+                return null;
+            }
+        }
+    }
+
+    /** Parse ISO-8601 string to LocalDateTime in system default zone (for storage). */
+    private LocalDateTime parseIsoToLocalDateTime(String iso) {
+        if (iso == null || iso.isBlank()) return null;
+        try {
+            return Instant.parse(iso).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(iso, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            } catch (Exception e2) {
+                throw new IllegalArgumentException("Invalid date-time: " + iso, e2);
+            }
+        }
+    }
+
     private void applyCashbackData(RewardProgram program, LaunchCashbackProgramRequest request) {
         if (request.getName() != null) {
             program.setName(request.getName());
@@ -292,10 +585,14 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         if (request.getDescription() != null) {
             program.setDescription(request.getDescription());
         }
-        if (request.getStartDate() != null) {
-            program.setStartDate(request.getStartDate());
+        if (request.getStartDate() != null && !request.getStartDate().isBlank()) {
+            program.setStartDate(parseIsoToLocalDateTime(request.getStartDate()));
         }
-        program.setEndDate(request.getEndDate());
+        if (request.getEndDate() != null && !request.getEndDate().isBlank()) {
+            program.setEndDate(parseIsoToLocalDateTime(request.getEndDate()));
+        } else {
+            program.setEndDate(null);
+        }
 
         if (request.getWeeklySchedules() != null) {
             syncWeeklySchedules(program, request.getWeeklySchedules());
@@ -402,6 +699,26 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                         && (rule.getPointsSpendThreshold() == null
                             || rule.getPointsSpendThreshold().compareTo(BigDecimal.ZERO) <= 0)) {
                     errors.add("Points spend threshold is required for BONUS_POINTS type and must be > 0");
+                }
+            }
+        }
+
+        if (program.getType() == RewardProgramType.WELCOME) {
+            WelcomeProgramRule rule = program.getWelcomeRule();
+            if (rule == null) {
+                errors.add("Welcome rules must be configured");
+            } else {
+                if (rule.getGrantType() == null) {
+                    errors.add("Grant type is required");
+                }
+                if (rule.getGrantValue() == null || rule.getGrantValue().compareTo(BigDecimal.ZERO) <= 0) {
+                    errors.add("Grant value is required and must be > 0");
+                }
+                if (rule.getGrantTrigger() == null) {
+                    errors.add("Grant trigger is required");
+                }
+                if (rule.getGrantTrigger() == GrantTrigger.ON_FIRST_PAY && rule.getFirstPayMode() == null) {
+                    errors.add("First pay mode is required when granting on first payment");
                 }
             }
         }
@@ -595,6 +912,9 @@ public class RewardProgramServiceImpl implements RewardProgramService {
     // ─── Mappers ─────────────────────────────────────────────────────
 
     private RewardProgramResponse toResponse(RewardProgram program) {
+        String alwaysOnName = program.getEndDate() != null ? findAlwaysOnProgramName(program) : null;
+        // Only always-on programs (no end date) are "ignored" when a dated program is active; set for them only.
+        String ignoredDuringName = program.getEndDate() == null ? findIgnoredDuringProgramName(program) : null;
         return RewardProgramResponse.builder()
                 .uuid(program.getUuid())
                 .type(program.getType())
@@ -606,12 +926,18 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .weeklySchedules(mapSchedules(program.getWeeklySchedules()))
                 .cashbackRule(mapCashbackRule(program.getCashbackRule()))
                 .cashbackTiers(mapCashbackTiers(program.getCashbackTiers()))
+                .welcomeRule(mapWelcomeRule(program.getWelcomeRule()))
                 .createdAt(program.getCreatedAt())
                 .updatedAt(program.getUpdatedAt())
+                .alwaysOnProgramName(alwaysOnName)
+                .ignoredDuringProgramName(ignoredDuringName)
                 .build();
     }
 
     private RewardProgramListItem toListItem(RewardProgram program) {
+        String alwaysOnName = program.getEndDate() != null ? findAlwaysOnProgramName(program) : null;
+        // Only always-on programs are "ignored" when a dated program is active.
+        String ignoredDuringName = program.getEndDate() == null ? findIgnoredDuringProgramName(program) : null;
         RewardProgramListItem.RewardProgramListItemBuilder b = RewardProgramListItem.builder()
                 .uuid(program.getUuid())
                 .type(program.getType())
@@ -619,7 +945,9 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .name(program.getName())
                 .startDate(program.getStartDate())
                 .endDate(program.getEndDate())
-                .createdAt(program.getCreatedAt());
+                .createdAt(program.getCreatedAt())
+                .alwaysOnProgramName(alwaysOnName)
+                .ignoredDuringProgramName(ignoredDuringName);
         if (program.getType() == RewardProgramType.CASHBACK && program.getCashbackRule() != null) {
             var rule = program.getCashbackRule();
             b.cashbackType(rule.getCashbackType())
@@ -627,7 +955,34 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                     .minSpendAmount(rule.getMinSpendAmount())
                     .pointsSpendThreshold(rule.getPointsSpendThreshold());
         }
+        if (program.getType() == RewardProgramType.WELCOME && program.getWelcomeRule() != null) {
+            var rule = program.getWelcomeRule();
+            b.welcomeGrantType(rule.getGrantType())
+                    .welcomeGrantValue(rule.getGrantValue());
+        }
         return b.build();
+    }
+
+    /** When the given program has an end date, returns the name of an always-on (no end date) program of the same type, if any. */
+    private String findAlwaysOnProgramName(RewardProgram program) {
+        List<RewardProgram> sameType = rewardProgramRepository.findByTypeAndStatusIn(program.getType(),
+                List.of(RewardProgramStatus.ACTIVE, RewardProgramStatus.SCHEDULED));
+        Optional<RewardProgram> alwaysOn = sameType.stream()
+                .filter(p -> !p.getUuid().equals(program.getUuid()))
+                .filter(p -> p.getEndDate() == null)
+                .findFirst();
+        return alwaysOn.map(p -> p.getName() != null && !p.getName().isBlank() ? p.getName() : "Always-on program").orElse(null);
+    }
+
+    /** When the given program is always-on (no end date), returns the name of a dated program of the same type that overrides it during its period, if any. */
+    private String findIgnoredDuringProgramName(RewardProgram program) {
+        List<RewardProgram> sameType = rewardProgramRepository.findByTypeAndStatusIn(program.getType(),
+                List.of(RewardProgramStatus.ACTIVE, RewardProgramStatus.SCHEDULED));
+        Optional<RewardProgram> dated = sameType.stream()
+                .filter(p -> !p.getUuid().equals(program.getUuid()))
+                .filter(p -> p.getEndDate() != null)
+                .findFirst();
+        return dated.map(p -> p.getName() != null && !p.getName().isBlank() ? p.getName() : "Scheduled program").orElse(null);
     }
 
     private List<WeeklyScheduleResponse> mapSchedules(List<ProgramWeeklySchedule> schedules) {
@@ -656,6 +1011,19 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .redeemLimitPercent(rule.getRedeemLimitPercent())
                 .bonusLifespanDays(rule.getBonusLifespanDays())
                 .pointsSpendThreshold(rule.getPointsSpendThreshold())
+                .build();
+    }
+
+    private WelcomeProgramRuleResponse mapWelcomeRule(WelcomeProgramRule rule) {
+        if (rule == null) {
+            return null;
+        }
+        return WelcomeProgramRuleResponse.builder()
+                .grantType(rule.getGrantType())
+                .grantValue(rule.getGrantValue())
+                .bonusLifespanDays(rule.getBonusLifespanDays())
+                .grantTrigger(rule.getGrantTrigger())
+                .firstPayMode(rule.getFirstPayMode())
                 .build();
     }
 

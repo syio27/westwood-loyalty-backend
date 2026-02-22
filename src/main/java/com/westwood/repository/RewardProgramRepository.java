@@ -16,13 +16,15 @@ import java.util.UUID;
 @Repository
 public interface RewardProgramRepository extends JpaRepository<RewardProgram, Long> {
 
-    /** Load programs with cashback rule for list API (bonus type column). */
-    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.cashbackRule")
-    List<RewardProgram> findAllWithCashbackRule();
+    /** Load programs with cashback and welcome rules for list API (bonus type column). */
+    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.cashbackRule LEFT JOIN FETCH rp.welcomeRule")
+    List<RewardProgram> findAllWithRules();
 
     Optional<RewardProgram> findByUuid(UUID uuid);
 
     Optional<RewardProgram> findByType(RewardProgramType type);
+
+    List<RewardProgram> findAllByType(RewardProgramType type);
 
     List<RewardProgram> findByTypeAndStatusIn(RewardProgramType type, List<RewardProgramStatus> statuses);
 
@@ -45,4 +47,16 @@ public interface RewardProgramRepository extends JpaRepository<RewardProgram, Lo
     Optional<RewardProgram> findByTypeAndStatusWithCashbackRule(
             @Param("type") RewardProgramType type,
             @Param("status") RewardProgramStatus status);
+
+    /** Load all programs of given type and statuses with cashback rule (for effective-program resolution). */
+    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.cashbackRule WHERE rp.type = :type AND rp.status IN :statuses")
+    List<RewardProgram> findByTypeAndStatusInWithCashbackRule(
+            @Param("type") RewardProgramType type,
+            @Param("statuses") List<RewardProgramStatus> statuses);
+
+    /** Load active/scheduled welcome programs with rule (for grant-on-join and grant-on-first-pay). */
+    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.welcomeRule WHERE rp.type = :type AND rp.status IN :statuses")
+    List<RewardProgram> findByTypeAndStatusInWithWelcomeRule(
+            @Param("type") RewardProgramType type,
+            @Param("statuses") List<RewardProgramStatus> statuses);
 }

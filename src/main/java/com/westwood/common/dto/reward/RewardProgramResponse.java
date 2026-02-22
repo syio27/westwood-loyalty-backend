@@ -36,6 +36,14 @@ public class RewardProgramResponse {
 
     private List<CashbackTierResponse> cashbackTiers;
 
+    private WelcomeProgramRuleResponse welcomeRule;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    /** When this program has an end date and an always-on program of the same type exists: that program's name (for UI tooltip). */
+    private String alwaysOnProgramName;
+
+    /** When this program is always-on (no end date) and a dated program of the same type exists: that program's name (this program is not applied during that program's period). */
+    private String ignoredDuringProgramName;
 }

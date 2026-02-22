@@ -25,6 +25,7 @@ import com.westwood.domain.RewardProgramType;
 import com.westwood.domain.RewardProgramStatus;
 import com.westwood.domain.CashbackProgramRule;
 import com.westwood.service.BonusService;
+import com.westwood.service.CashbackCalculationService;
 import com.westwood.service.EventBonusService;
 import com.westwood.service.EventSourcingService;
 import com.westwood.service.PaymentService;
@@ -62,6 +63,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final BonusService bonusService;
     private final TransactionIdentifierService transactionIdentifierService;
     private final RewardProgramRepository rewardProgramRepository;
+    private final CashbackCalculationService cashbackCalculationService;
 
     public PaymentServiceImpl(PaymentTransactionRepository paymentRepository,
                               ClientRepository clientRepository,
@@ -73,7 +75,8 @@ public class PaymentServiceImpl implements PaymentService {
                               BonusConsumptionRepository bonusConsumptionRepository,
                               BonusService bonusService,
                               TransactionIdentifierService transactionIdentifierService,
-                              RewardProgramRepository rewardProgramRepository) {
+                              RewardProgramRepository rewardProgramRepository,
+                              CashbackCalculationService cashbackCalculationService) {
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
         this.userRepository = userRepository;
@@ -85,6 +88,7 @@ public class PaymentServiceImpl implements PaymentService {
         this.bonusService = bonusService;
         this.transactionIdentifierService = transactionIdentifierService;
         this.rewardProgramRepository = rewardProgramRepository;
+        this.cashbackCalculationService = cashbackCalculationService;
     }
 
     @Override
@@ -525,9 +529,9 @@ public class PaymentServiceImpl implements PaymentService {
                     ", Requested: " + bonusAmountUsed);
             }
 
-            // Enforce redeem limit percent from active cashback program
-            java.util.Optional<RewardProgram> activeProgram = rewardProgramRepository
-                    .findByTypeAndStatus(RewardProgramType.CASHBACK, RewardProgramStatus.ACTIVE);
+            // Enforce redeem limit percent from effective active cashback program
+            java.util.Optional<RewardProgram> activeProgram = cashbackCalculationService
+                    .getEffectiveActiveCashbackProgram(java.time.LocalDateTime.now());
             if (activeProgram.isPresent()) {
                 CashbackProgramRule rule = activeProgram.get().getCashbackRule();
                 if (rule != null && rule.getRedeemLimitPercent() < 100) {

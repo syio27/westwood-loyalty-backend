@@ -6,12 +6,17 @@ import com.westwood.domain.BonusType;
 import com.westwood.domain.BonusTypeEnum;
 import com.westwood.domain.Client;
 import com.westwood.domain.PaymentTransaction;
+import com.westwood.domain.FirstPayMode;
+import com.westwood.domain.GrantTrigger;
+import com.westwood.domain.RewardProgram;
+import com.westwood.domain.WelcomeProgramRule;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.BonusTypeRepository;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.service.CashbackCalculationService;
 import com.westwood.service.EventBonusService;
+import com.westwood.service.RewardProgramService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -34,37 +40,26 @@ public class EventBonusServiceImpl implements EventBonusService {
     private final PaymentTransactionRepository paymentRepository;
     private final BonusEventRepository bonusEventRepository;
     private final CashbackCalculationService cashbackCalculationService;
+    private final RewardProgramService rewardProgramService;
 
     public EventBonusServiceImpl(
             BonusTypeRepository bonusTypeRepository,
             ClientRepository clientRepository,
             PaymentTransactionRepository paymentRepository,
             BonusEventRepository bonusEventRepository,
-            CashbackCalculationService cashbackCalculationService) {
+            CashbackCalculationService cashbackCalculationService,
+            RewardProgramService rewardProgramService) {
         this.bonusTypeRepository = bonusTypeRepository;
         this.clientRepository = clientRepository;
         this.paymentRepository = paymentRepository;
         this.bonusEventRepository = bonusEventRepository;
         this.cashbackCalculationService = cashbackCalculationService;
+        this.rewardProgramService = rewardProgramService;
     }
 
     @Override
     public void checkAndGrantWelcomeBonus(UUID clientId) {
-        // Legacy: Welcome bonus is now managed via reward programs.
-        // This method is kept for backwards compatibility but will no-op when bonus_types table is empty.
         try {
-            BonusType welcomeBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.WELCOME)
-                    .orElse(null);
-
-            if (welcomeBonus == null) {
-                logger.debug("Welcome bonus type not found or disabled, skipping for client: {}", clientId);
-                return;
-            }
-            if (welcomeBonus.getBonusAmount() == null || welcomeBonus.getBonusAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                logger.debug("Welcome bonus has no positive amount configured, skipping for client: {}", clientId);
-                return;
-            }
-
             Client client = clientRepository.findByUuid(clientId)
                     .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
@@ -79,8 +74,33 @@ public class EventBonusServiceImpl implements EventBonusService {
                 return;
             }
 
+            // Prefer welcome reward program (grant on client joining)
+            Optional<RewardProgram> welcomeProgram =
+                    rewardProgramService.getEffectiveActiveWelcomeProgram(LocalDateTime.now());
+            if (welcomeProgram.isPresent()) {
+                RewardProgram program = welcomeProgram.get();
+                WelcomeProgramRule rule = program.getWelcomeRule();
+                if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_JOIN
+                        && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
+                    grantWelcomeFromRule(client, rule, null, null);
+                    logger.info("Welcome bonus (program) granted to client: {}", clientId);
+                    return;
+                }
+            }
+
+            // Legacy: bonus_types table
+            BonusType welcomeBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.WELCOME)
+                    .orElse(null);
+            if (welcomeBonus == null) {
+                logger.debug("Welcome bonus type not found or disabled, skipping for client: {}", clientId);
+                return;
+            }
+            if (welcomeBonus.getBonusAmount() == null || welcomeBonus.getBonusAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                logger.debug("Welcome bonus has no positive amount configured, skipping for client: {}", clientId);
+                return;
+            }
             grantBonus(client, welcomeBonus, null, null, "WELCOME", welcomeBonus.getBonusAmount());
-            logger.info("Welcome bonus granted to client: {}", clientId);
+            logger.info("Welcome bonus (legacy) granted to client: {}", clientId);
         } catch (Exception e) {
             logger.error("Error granting welcome bonus to client: {} (non-fatal)", clientId, e);
         }
@@ -223,11 +243,52 @@ public class EventBonusServiceImpl implements EventBonusService {
     public void processPaymentBonuses(String paymentTxId, UUID clientId, BigDecimal paymentAmount) {
         logger.info("Processing payment bonuses for payment {} client {}", paymentTxId, clientId);
 
-        // Use the new cashback reward program rules (method handles its own errors internally)
-        cashbackCalculationService.processPaymentCashback(paymentTxId, clientId, paymentAmount);
+        Client client = clientRepository.findByUuid(clientId)
+                .orElse(null);
+        if (client == null) {
+            return;
+        }
 
-        // Check and grant PAYMENT_MILESTONE
+        long completedCount = paymentRepository.countCompletedTransactionsByClientId(client.getId());
+        boolean isFirstPayment = (completedCount == 1);
+
+        if (isFirstPayment) {
+            Optional<RewardProgram> welcomeOpt =
+                    rewardProgramService.getEffectiveActiveWelcomeProgram(LocalDateTime.now());
+            if (welcomeOpt.isPresent()) {
+                WelcomeProgramRule rule = welcomeOpt.get().getWelcomeRule();
+                if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_FIRST_PAY
+                        && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
+                    PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId).orElse(null);
+                    grantWelcomeFromRule(client, rule, payment, paymentAmount);
+                    if (rule.getFirstPayMode() == FirstPayMode.WELCOME_ONLY) {
+                        checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
+                        return;
+                    }
+                }
+            }
+        }
+
+        cashbackCalculationService.processPaymentCashback(paymentTxId, clientId, paymentAmount);
         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
+    }
+
+    private void grantWelcomeFromRule(Client client, WelcomeProgramRule rule,
+                                      PaymentTransaction payment, BigDecimal paymentAmount) {
+        BonusGranted bonusGranted = new BonusGranted();
+        bonusGranted.setClient(client);
+        bonusGranted.setEventId(UUID.randomUUID());
+        bonusGranted.setBonusAmount(rule.getGrantValue());
+        bonusGranted.setBonusType(null);
+        bonusGranted.setGrantReason("WELCOME");
+        if (rule.getBonusLifespanDays() != null && rule.getBonusLifespanDays() > 0) {
+            bonusGranted.setExpiresAt(LocalDateTime.now().plusDays(rule.getBonusLifespanDays()));
+        }
+        if (payment != null) {
+            bonusGranted.setPaymentTransaction(payment);
+            bonusGranted.setPaymentAmount(paymentAmount);
+        }
+        bonusEventRepository.save(bonusGranted);
     }
 
     private void grantBonus(Client client, BonusType bonusType, PaymentTransaction payment, 

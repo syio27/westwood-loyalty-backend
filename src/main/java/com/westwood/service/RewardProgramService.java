@@ -4,10 +4,14 @@ import com.westwood.common.dto.CreateRewardProgramDraftRequest;
 import com.westwood.common.dto.CreateRewardProgramDraftResponse;
 import com.westwood.common.dto.RewardProgramSlotDto;
 import com.westwood.common.dto.reward.*;
+import com.westwood.domain.RewardProgram;
+import com.westwood.domain.RewardProgramType;
 
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface RewardProgramService {
@@ -43,15 +47,26 @@ public interface RewardProgramService {
      */
     RewardProgramResponse saveCashbackDraft(UUID uuid, SaveCashbackProgramDraftRequest request);
 
+    /**
+     * Save/update welcome program draft. Schedule is start/end date only (no weekly).
+     * Only allowed when program is in DRAFT status and type is WELCOME.
+     */
+    RewardProgramResponse saveWelcomeDraft(UUID uuid, SaveWelcomeProgramDraftRequest request);
+
     // --- Lifecycle ---
 
     /**
      * Launch a cashback program immediately or schedule it.
      * Accepts optional program data — if provided, persisted before launch validation.
-     * This allows the frontend to submit the full form and launch in one call.
      * DRAFT -> ACTIVE (immediate) or DRAFT -> SCHEDULED.
      */
     RewardProgramResponse launchCashbackProgram(UUID uuid, LaunchCashbackProgramRequest request);
+
+    /**
+     * Launch a welcome program immediately or schedule it.
+     * Schedule: start/end only (no weekly). DRAFT -> ACTIVE or DRAFT -> SCHEDULED.
+     */
+    RewardProgramResponse launchWelcomeProgram(UUID uuid, LaunchWelcomeProgramRequest request);
 
     /**
      * ACTIVE -> INACTIVE (manually deactivate a running program).
@@ -73,4 +88,19 @@ public interface RewardProgramService {
      * Clients are tiered by program-period spend only; returns empty when program is not ACTIVE or has no tiers.
      */
     PagedTieredClientsResponse getTieredClients(UUID programUuid, Pageable pageable, String tierName, String search, String searchPhone, String sort);
+
+    /**
+     * Check if scheduling a program with the given type and date range would overlap with an existing
+     * ACTIVE or SCHEDULED program of the same type. When an existing program is "always on" (no end date)
+     * and the new program has an end date, no conflict is reported (always-on is ignored during the new program's period).
+     *
+     * @param excludeUuid UUID of the program being edited (excluded from check); can be null for new programs.
+     */
+    ScheduleOverlapCheckResponse checkScheduleOverlap(RewardProgramType type,
+                                                        LocalDateTime start, LocalDateTime end, UUID excludeUuid);
+
+    /**
+     * Returns the active welcome program whose period contains the given time (for grant-on-join and grant-on-first-pay).
+     */
+    Optional<RewardProgram> getEffectiveActiveWelcomeProgram(LocalDateTime at);
 }

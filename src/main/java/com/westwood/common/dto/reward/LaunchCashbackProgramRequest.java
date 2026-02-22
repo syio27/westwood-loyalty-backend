@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -20,7 +19,8 @@ import java.util.List;
 public class LaunchCashbackProgramRequest {
 
     // --- Launch options ---
-    private boolean immediate = true;
+    /** If true, launch as always-on (no end date). If false, schedule with start/end dates. Default false so periodic is safe when field is omitted. */
+    private boolean immediate = false;
 
     // --- Program details (optional — applied before launch if provided) ---
     private String name;
@@ -35,9 +35,9 @@ public class LaunchCashbackProgramRequest {
     private Integer bonusLifespanDays;
     private BigDecimal pointsSpendThreshold;
 
-    // --- Schedule ---
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    // --- Schedule --- (ISO-8601 strings e.g. "2025-02-20T05:30:00.000Z" for timezone-safe validation)
+    private String startDate;
+    private String endDate;
 
     @Valid
     private List<WeeklyScheduleEntry> weeklySchedules;
