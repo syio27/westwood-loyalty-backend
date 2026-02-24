@@ -181,5 +181,28 @@ public interface BonusEventRepository extends JpaRepository<BonusEvent, Long> {
 
     @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.bonusType.id = :bonusTypeId")
     BigDecimal sumTotalBonusesGrantedByBonusTypeIdAllTime(@Param("bonusTypeId") Long bonusTypeId);
+
+    // --- Reward program report (filter by rewardProgramId) ---
+
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId AND bg.createdAt BETWEEN :from AND :to")
+    BigDecimal sumTotalBonusesGrantedByRewardProgramIdAndDateRange(@Param("rewardProgramId") Long rewardProgramId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT COUNT(bg) FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId AND bg.createdAt BETWEEN :from AND :to")
+    long countGrantsByRewardProgramIdAndDateRange(@Param("rewardProgramId") Long rewardProgramId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId AND bg.expiresAt IS NOT NULL AND bg.expiresAt BETWEEN :from AND :to " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id)")
+    List<BonusGranted> findGrantedExpiredInPeriodByRewardProgramId(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to, @Param("rewardProgramId") Long rewardProgramId);
+
+    @Query("SELECT bg FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId " +
+           "AND NOT EXISTS (SELECT 1 FROM BonusRevoked br WHERE br.originalBonusGranted.id = bg.id) " +
+           "AND (bg.expiresAt IS NULL OR bg.expiresAt > :now) ORDER BY bg.createdAt ASC")
+    List<BonusGranted> findAvailableGrantsByRewardProgramId(@Param("rewardProgramId") Long rewardProgramId, @Param("now") LocalDateTime now);
+
+    @Query("SELECT COUNT(DISTINCT bg.client.id) FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId AND bg.createdAt BETWEEN :from AND :to")
+    Long countDistinctClientsGrantedByRewardProgramIdInPeriod(@Param("rewardProgramId") Long rewardProgramId, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("SELECT COALESCE(SUM(bg.bonusAmount), 0) FROM BonusGranted bg WHERE bg.rewardProgram.id = :rewardProgramId")
+    BigDecimal sumTotalBonusesGrantedByRewardProgramIdAllTime(@Param("rewardProgramId") Long rewardProgramId);
 }
 

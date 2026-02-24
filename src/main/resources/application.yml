@@ -1,6 +1,6 @@
 spring:
   application:
-    name: westwood-backend
+    name: tinta-backend
   
   profiles:
     active: dev

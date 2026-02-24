@@ -27,6 +27,19 @@ public interface BonusConsumptionRepository extends JpaRepository<BonusConsumpti
     @Query("SELECT COUNT(DISTINCT c.bonusGranted.client.id) FROM BonusConsumption c WHERE c.bonusGranted.bonusType.id = :bonusTypeId AND c.consumptionType = 'PAYMENT_USE' AND c.createdAt BETWEEN :from AND :to")
     Long countDistinctClientsConsumedByBonusTypeInPeriod(@Param("bonusTypeId") Long bonusTypeId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
 
+    /** By reward program (bonus_granted.reward_program_id). */
+    @Query("SELECT COALESCE(SUM(c.amount), 0) FROM BonusConsumption c WHERE c.bonusGranted.rewardProgram.id = :rewardProgramId AND c.consumptionType = 'PAYMENT_USE' AND c.createdAt BETWEEN :from AND :to")
+    BigDecimal sumAmountByRewardProgramIdAndDateRange(@Param("rewardProgramId") Long rewardProgramId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT DISTINCT c.paymentTransaction.id FROM BonusConsumption c WHERE c.bonusGranted.rewardProgram.id = :rewardProgramId AND c.paymentTransaction IS NOT NULL AND c.consumptionType = 'PAYMENT_USE' AND c.paymentTransaction.createdAt BETWEEN :from AND :to AND c.paymentTransaction.status = 'COMPLETED'")
+    List<Long> findCompletedPaymentIdsThatConsumedRewardProgramInPeriod(@Param("rewardProgramId") Long rewardProgramId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT COUNT(DISTINCT c.bonusGranted.client.id) FROM BonusConsumption c WHERE c.bonusGranted.rewardProgram.id = :rewardProgramId AND c.consumptionType = 'PAYMENT_USE' AND c.createdAt BETWEEN :from AND :to")
+    Long countDistinctClientsConsumedByRewardProgramIdInPeriod(@Param("rewardProgramId") Long rewardProgramId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
+    @Query("SELECT COUNT(c) FROM BonusConsumption c WHERE c.bonusGranted.rewardProgram.id = :rewardProgramId AND c.consumptionType = 'PAYMENT_USE' AND c.createdAt BETWEEN :from AND :to")
+    long countConsumptionsByRewardProgramIdAndDateRange(@Param("rewardProgramId") Long rewardProgramId, @Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);
+
     /** Payment IDs (COMPLETED) that used any bonus in period (for "all bonuses" report). */
     @Query("SELECT DISTINCT c.paymentTransaction.id FROM BonusConsumption c WHERE c.paymentTransaction IS NOT NULL AND c.consumptionType = 'PAYMENT_USE' AND c.paymentTransaction.createdAt BETWEEN :from AND :to AND c.paymentTransaction.status = 'COMPLETED'")
     List<Long> findCompletedPaymentIdsThatConsumedAnyBonusInPeriod(@Param("from") java.time.LocalDateTime from, @Param("to") java.time.LocalDateTime to);

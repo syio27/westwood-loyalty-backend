@@ -13,9 +13,9 @@
     </parent>
 
     <groupId>com.westwood</groupId>
-    <artifactId>westwood-backend</artifactId>
+    <artifactId>tinta-backend</artifactId>
     <version>1.0.0</version>
-    <name>Westwood Backend</name>
+    <name>Tinta Backend</name>
     <description>Spring Boot application with PostgreSQL and H2 database support</description>
 
     <properties>

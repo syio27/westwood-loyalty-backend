@@ -82,7 +82,7 @@ public class EventBonusServiceImpl implements EventBonusService {
                 WelcomeProgramRule rule = program.getWelcomeRule();
                 if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_JOIN
                         && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
-                    grantWelcomeFromRule(client, rule, null, null);
+                    grantWelcomeFromRule(client, program, rule, null, null);
                     logger.info("Welcome bonus (program) granted to client: {}", clientId);
                     return;
                 }
@@ -256,11 +256,12 @@ public class EventBonusServiceImpl implements EventBonusService {
             Optional<RewardProgram> welcomeOpt =
                     rewardProgramService.getEffectiveActiveWelcomeProgram(LocalDateTime.now());
             if (welcomeOpt.isPresent()) {
-                WelcomeProgramRule rule = welcomeOpt.get().getWelcomeRule();
+                RewardProgram program = welcomeOpt.get();
+                WelcomeProgramRule rule = program.getWelcomeRule();
                 if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_FIRST_PAY
                         && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
                     PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId).orElse(null);
-                    grantWelcomeFromRule(client, rule, payment, paymentAmount);
+                    grantWelcomeFromRule(client, program, rule, payment, paymentAmount);
                     if (rule.getFirstPayMode() == FirstPayMode.WELCOME_ONLY) {
                         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
                         return;
@@ -273,13 +274,14 @@ public class EventBonusServiceImpl implements EventBonusService {
         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
     }
 
-    private void grantWelcomeFromRule(Client client, WelcomeProgramRule rule,
+    private void grantWelcomeFromRule(Client client, RewardProgram program, WelcomeProgramRule rule,
                                       PaymentTransaction payment, BigDecimal paymentAmount) {
         BonusGranted bonusGranted = new BonusGranted();
         bonusGranted.setClient(client);
         bonusGranted.setEventId(UUID.randomUUID());
         bonusGranted.setBonusAmount(rule.getGrantValue());
         bonusGranted.setBonusType(null);
+        bonusGranted.setRewardProgram(program);
         bonusGranted.setGrantReason("WELCOME");
         if (rule.getBonusLifespanDays() != null && rule.getBonusLifespanDays() > 0) {
             bonusGranted.setExpiresAt(LocalDateTime.now().plusDays(rule.getBonusLifespanDays()));

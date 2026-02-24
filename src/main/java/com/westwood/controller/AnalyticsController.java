@@ -156,8 +156,12 @@ public class AnalyticsController {
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
     public ResponseEntity<BonusTypeReportDto> getBonusTypeReport(
             @RequestParam(required = false) Long bonusTypeId,
+            @RequestParam(required = false) UUID rewardProgramUuid,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        if (rewardProgramUuid != null) {
+            return ResponseEntity.ok(bonusTypeReportService.getReportByRewardProgram(rewardProgramUuid, from, to));
+        }
         return ResponseEntity.ok(bonusTypeReportService.getReport(bonusTypeId, from, to));
     }
 }
