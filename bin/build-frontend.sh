@@ -7,12 +7,12 @@ set -e
 echo "==> Building Angular frontend..."
 
 # Navigate to frontend directory
-cd ../westwood-frontend
+cd ../tinta-frontend
 
 # Install dependencies
 npm ci
 
-# Build for production (outputs to ../westwood-backend/src/main/resources/static)
+# Build for production (outputs to ../tinta-backend/src/main/resources/static)
 npm run build
 
 echo "==> Frontend build complete!"

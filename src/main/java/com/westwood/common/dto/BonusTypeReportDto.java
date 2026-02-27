@@ -26,10 +26,20 @@ public class BonusTypeReportDto {
     private long transactionCountWithoutBonus;
     private BigDecimal avgCheckWithBonus;
     private BigDecimal avgCheckWithoutBonus;
+    /** Total amount granted in period. */
     private BigDecimal totalGranted;
+    /** Number of grant events in period (for analytics). */
+    private long grantCount;
+    /** Total amount still active (not used, not expired, not revoked). */
     private BigDecimal inCirculation;
+    /** Amount that expired in period (unused portion of grants whose expiresAt fell in period). */
     private BigDecimal burnedAmount;
+    /** Number of grants that expired in period (for analytics). */
+    private long expiredGrantCount;
+    /** Total amount used (consumed) in period. */
     private BigDecimal spentAmount;
+    /** Number of consumption (use) events in period (for analytics). */
+    private long consumptionCount;
     private BigDecimal redemptionRatePercent;
     private BigDecimal effectiveDiscountPercent;
     private BigDecimal burnRatePercent;

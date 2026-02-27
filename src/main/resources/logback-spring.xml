@@ -18,12 +18,12 @@
 
     <!-- File Appender (optional, for production) -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/westwood-backend.log</file>
+        <file>logs/tinta-backend.log</file>
         <encoder>
             <pattern>${FILE_LOG_PATTERN}</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/westwood-backend-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/tinta-backend-%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
     </appender>

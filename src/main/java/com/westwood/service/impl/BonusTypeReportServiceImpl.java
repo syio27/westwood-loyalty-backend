@@ -7,6 +7,8 @@ import com.westwood.domain.BonusGranted;
 import com.westwood.domain.BonusType;
 import com.westwood.domain.BonusTypeEnum;
 import com.westwood.domain.PaymentTransaction;
+import com.westwood.domain.RewardProgram;
+import com.westwood.domain.RewardProgramType;
 import com.westwood.repository.*;
 import com.westwood.service.AnalyticsService;
 import com.westwood.service.BonusTypeReportService;
@@ -35,19 +37,153 @@ public class BonusTypeReportServiceImpl implements BonusTypeReportService {
     private final PaymentTransactionRepository paymentRepository;
     private final ClientRepository clientRepository;
     private final AnalyticsService analyticsService;
+    private final RewardProgramRepository rewardProgramRepository;
 
     public BonusTypeReportServiceImpl(BonusTypeRepository bonusTypeRepository,
                                       BonusEventRepository bonusEventRepository,
                                       BonusConsumptionRepository bonusConsumptionRepository,
                                       PaymentTransactionRepository paymentRepository,
                                       ClientRepository clientRepository,
-                                      AnalyticsService analyticsService) {
+                                      AnalyticsService analyticsService,
+                                      RewardProgramRepository rewardProgramRepository) {
         this.bonusTypeRepository = bonusTypeRepository;
         this.bonusEventRepository = bonusEventRepository;
         this.bonusConsumptionRepository = bonusConsumptionRepository;
         this.paymentRepository = paymentRepository;
         this.clientRepository = clientRepository;
         this.analyticsService = analyticsService;
+        this.rewardProgramRepository = rewardProgramRepository;
+    }
+
+    @Override
+    public BonusTypeReportDto getReportByRewardProgram(UUID rewardProgramUuid, LocalDateTime from, LocalDateTime to) {
+        RewardProgram program = rewardProgramRepository.findByUuid(rewardProgramUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Reward program not found: " + rewardProgramUuid));
+        Long rewardProgramId = program.getId();
+        return getReportByRewardProgramId(program, rewardProgramId, from, to);
+    }
+
+    /** Build report scoped only to grants/consumption linked to this reward program (no bonus_type). */
+    private BonusTypeReportDto getReportByRewardProgramId(RewardProgram program, Long rewardProgramId, LocalDateTime from, LocalDateTime to) {
+        Set<Long> paymentIdsWithBonus = new HashSet<>(bonusConsumptionRepository.findCompletedPaymentIdsThatConsumedRewardProgramInPeriod(rewardProgramId, from, to));
+        List<PaymentTransaction> allPayments = paymentRepository.findCompletedByCreatedAtBetween(from, to);
+        List<PaymentTransaction> withBonus = allPayments.stream().filter(p -> paymentIdsWithBonus.contains(p.getId())).collect(Collectors.toList());
+        List<PaymentTransaction> withoutBonus = allPayments.stream().filter(p -> !paymentIdsWithBonus.contains(p.getId())).collect(Collectors.toList());
+
+        BigDecimal totalRevenue = allPayments.stream().map(PaymentTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal avgCheckWithBonus = averageAmount(withBonus);
+        BigDecimal avgCheckWithoutBonus = averageAmount(withoutBonus);
+        BigDecimal aovUplift = computeAovUplift(avgCheckWithBonus, avgCheckWithoutBonus);
+        BigDecimal incrementalRevenue = computeIncrementalRevenue(withBonus, withoutBonus);
+        BigDecimal incrementalPct = safeDividePercent(incrementalRevenue, totalRevenue);
+
+        BigDecimal totalGranted = nullToZero(bonusEventRepository.sumTotalBonusesGrantedByRewardProgramIdAndDateRange(rewardProgramId, from, to));
+        long grantCount = bonusEventRepository.countGrantsByRewardProgramIdAndDateRange(rewardProgramId, from, to);
+        BigDecimal spentAmount = nullToZero(bonusConsumptionRepository.sumAmountByRewardProgramIdAndDateRange(rewardProgramId, from, to));
+        long consumptionCount = bonusConsumptionRepository.countConsumptionsByRewardProgramIdAndDateRange(rewardProgramId, from, to);
+        BigDecimal inCirculation = BigDecimal.ZERO;
+        List<BonusGranted> availableGrants = bonusEventRepository.findAvailableGrantsByRewardProgramId(rewardProgramId, LocalDateTime.now());
+        for (BonusGranted g : availableGrants) {
+            BigDecimal consumed = nullToZero(bonusConsumptionRepository.sumAmountByBonusGrantedId(g.getId()));
+            BigDecimal remaining = g.getBonusAmount().subtract(consumed).max(BigDecimal.ZERO);
+            inCirculation = inCirculation.add(remaining);
+        }
+        LocalDateTime burnStart = to.minusYears(1);
+        List<BonusGranted> expiredGrantsTtm = bonusEventRepository.findGrantedExpiredInPeriodByRewardProgramId(burnStart, to, rewardProgramId);
+        BigDecimal burnedAmount = BigDecimal.ZERO;
+        for (BonusGranted g : expiredGrantsTtm) {
+            BigDecimal consumed = nullToZero(bonusConsumptionRepository.sumAmountByBonusGrantedId(g.getId()));
+            BigDecimal remaining = g.getBonusAmount().subtract(consumed).max(BigDecimal.ZERO);
+            burnedAmount = burnedAmount.add(remaining);
+        }
+        List<BonusGranted> expiredGrantsInPeriod = bonusEventRepository.findGrantedExpiredInPeriodByRewardProgramId(from, to, rewardProgramId);
+        long expiredGrantCount = expiredGrantsInPeriod.size();
+        BigDecimal totalGrantedTtm = nullToZero(bonusEventRepository.sumTotalBonusesGrantedByRewardProgramIdAndDateRange(rewardProgramId, burnStart, to));
+
+        BigDecimal redemptionRate = safeDividePercent(spentAmount, totalGranted);
+        BigDecimal effectiveDiscount = safeDividePercent(spentAmount, totalRevenue);
+        BigDecimal burnRate = safeDividePercent(burnedAmount, totalGrantedTtm);
+
+        List<BonusTypeReportDto.MonthlyReportPointDto> monthlyData = buildMonthlyDataByRewardProgram(rewardProgramId, from, to);
+
+        BigDecimal retentionRatePercent = BigDecimal.ZERO;
+        if (program.getType() == RewardProgramType.WELCOME || program.getType() == RewardProgramType.BIRTHDAY) {
+            Long grantedClients = bonusEventRepository.countDistinctClientsGrantedByRewardProgramIdInPeriod(rewardProgramId, from, to);
+            Long consumedClients = bonusConsumptionRepository.countDistinctClientsConsumedByRewardProgramIdInPeriod(rewardProgramId, from, to);
+            retentionRatePercent = grantedClients == null || grantedClients == 0
+                    ? BigDecimal.ZERO
+                    : safeDivide(BigDecimal.valueOf(consumedClients != null ? consumedClients : 0), BigDecimal.valueOf(grantedClients)).multiply(BigDecimal.valueOf(100)).setScale(2, ROUNDING);
+        }
+
+        BigDecimal conversionRatePercent = BigDecimal.ZERO;
+        BigDecimal cac = BigDecimal.ZERO;
+        if (program.getType() == RewardProgramType.REFERRAL) {
+            Long referredTotal = clientRepository.countReferredClients();
+            Long referredWithPurchase = clientRepository.countReferredClientsWithPurchase();
+            conversionRatePercent = (referredTotal == null || referredTotal == 0)
+                    ? BigDecimal.ZERO
+                    : safeDivide(BigDecimal.valueOf(referredWithPurchase != null ? referredWithPurchase : 0), BigDecimal.valueOf(referredTotal)).multiply(BigDecimal.valueOf(100)).setScale(2, ROUNDING);
+            BigDecimal totalReferralGranted = nullToZero(bonusEventRepository.sumTotalBonusesGrantedByRewardProgramIdAllTime(rewardProgramId));
+            cac = (referredWithPurchase == null || referredWithPurchase == 0)
+                    ? BigDecimal.ZERO
+                    : totalReferralGranted.divide(BigDecimal.valueOf(referredWithPurchase), 2, ROUNDING);
+        }
+
+        String programName = program.getName() != null && !program.getName().isBlank() ? program.getName() : "Reward program";
+        return BonusTypeReportDto.builder()
+                .bonusTypeId(null)
+                .bonusTypeName(programName)
+                .periodFrom(from.toString())
+                .periodTo(to.toString())
+                .transactionCount(withBonus.size())
+                .transactionCountWithoutBonus(withoutBonus.size())
+                .avgCheckWithBonus(avgCheckWithBonus.setScale(2, ROUNDING))
+                .avgCheckWithoutBonus(avgCheckWithoutBonus.setScale(2, ROUNDING))
+                .totalGranted(totalGranted.setScale(2, ROUNDING))
+                .grantCount(grantCount)
+                .inCirculation(inCirculation.setScale(2, ROUNDING))
+                .burnedAmount(burnedAmount.setScale(2, ROUNDING))
+                .expiredGrantCount(expiredGrantCount)
+                .spentAmount(spentAmount.setScale(2, ROUNDING))
+                .consumptionCount(consumptionCount)
+                .redemptionRatePercent(redemptionRate.setScale(2, ROUNDING))
+                .effectiveDiscountPercent(effectiveDiscount.setScale(2, ROUNDING))
+                .burnRatePercent(burnRate.setScale(2, ROUNDING))
+                .aovUpliftPercent(aovUplift.setScale(2, ROUNDING))
+                .incrementalRevenuePercent(incrementalPct.setScale(2, ROUNDING))
+                .retentionRatePercent(retentionRatePercent)
+                .conversionRatePercent(conversionRatePercent)
+                .cac(cac)
+                .monthlyData(monthlyData)
+                .build();
+    }
+
+    private List<BonusTypeReportDto.MonthlyReportPointDto> buildMonthlyDataByRewardProgram(Long rewardProgramId, LocalDateTime from, LocalDateTime to) {
+        List<BonusTypeReportDto.MonthlyReportPointDto> result = new ArrayList<>();
+        YearMonth start = YearMonth.from(from);
+        YearMonth end = YearMonth.from(to);
+        DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("MMM yyyy", new Locale("ru"));
+        for (YearMonth ym = start; !ym.isAfter(end); ym = ym.plusMonths(1)) {
+            LocalDateTime monthStart = ym.atDay(1).atStartOfDay();
+            LocalDateTime monthEnd = ym.atEndOfMonth().atTime(23, 59, 59);
+            Set<Long> withBonusIds = new HashSet<>(bonusConsumptionRepository.findCompletedPaymentIdsThatConsumedRewardProgramInPeriod(rewardProgramId, monthStart, monthEnd));
+            List<PaymentTransaction> monthPayments = paymentRepository.findCompletedByCreatedAtBetween(monthStart, monthEnd);
+            List<PaymentTransaction> withBonus = monthPayments.stream().filter(p -> withBonusIds.contains(p.getId())).collect(Collectors.toList());
+            List<PaymentTransaction> withoutBonus = monthPayments.stream().filter(p -> !withBonusIds.contains(p.getId())).collect(Collectors.toList());
+            BigDecimal avgWith = averageAmount(withBonus);
+            BigDecimal avgWithout = averageAmount(withoutBonus);
+            BigDecimal monthRevenue = monthPayments.stream().map(PaymentTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            result.add(new BonusTypeReportDto.MonthlyReportPointDto(
+                    ym.format(monthFormatter),
+                    ym.toString(),
+                    avgWith.setScale(2, ROUNDING),
+                    avgWithout.setScale(2, ROUNDING),
+                    withBonus.size(),
+                    withoutBonus.size(),
+                    monthRevenue.setScale(2, ROUNDING)
+            ));
+        }
+        return result;
     }
 
     @Override

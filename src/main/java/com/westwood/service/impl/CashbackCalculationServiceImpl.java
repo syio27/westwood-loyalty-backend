@@ -124,6 +124,7 @@ public class CashbackCalculationServiceImpl implements CashbackCalculationServic
             bonusGranted.setClient(client);
             bonusGranted.setEventId(UUID.randomUUID());
             bonusGranted.setBonusAmount(bonusAmount);
+            bonusGranted.setRewardProgram(program);
             bonusGranted.setPaymentTransaction(payment);
             bonusGranted.setPaymentAmount(paymentAmount);
             bonusGranted.setGrantReason("CASHBACK");

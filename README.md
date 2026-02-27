@@ -125,5 +125,5 @@ mvn clean package
 ## Running the JAR
 
 ```bash
-java -jar target/westwood-backend-1.0.0.jar --spring.profiles.active=prod
+java -jar target/tinta-backend-1.0.0.jar --spring.profiles.active=prod
 ```

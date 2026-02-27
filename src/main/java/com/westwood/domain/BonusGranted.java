@@ -30,6 +30,11 @@ public class BonusGranted extends BonusEvent {
     @JoinColumn(name = "bonus_type_id")
     private BonusType bonusType;
 
+    /** Reward program that this grant belongs to. Main scope for reporting and analytics. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reward_program_id")
+    private RewardProgram rewardProgram;
+
     @Column(name = "grant_reason", length = 50)
     private String grantReason; // e.g., "BIRTHDAY", "FIRST_PAYMENT", "10TH_PAYMENT", "REFERRAL"
 
