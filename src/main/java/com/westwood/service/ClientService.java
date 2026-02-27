@@ -33,5 +33,8 @@ public interface ClientService {
     PagedClientSearchResponse searchClients(ClientSearchRequest request);
 
     List<FrequentClientDto> getFrequentClients(int limit);
+
+    /** Stats for birthday event program: clients with birthdate set and how many will be granted this year (birthdays after today). */
+    ClientBirthdayStatsDto getBirthdayStats();
 }
 

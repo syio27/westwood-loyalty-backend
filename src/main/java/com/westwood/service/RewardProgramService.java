@@ -103,4 +103,9 @@ public interface RewardProgramService {
      * Returns the active welcome program whose period contains the given time (for grant-on-join and grant-on-first-pay).
      */
     Optional<RewardProgram> getEffectiveActiveWelcomeProgram(LocalDateTime at);
+
+    /**
+     * Returns the active welcome program with ON_BIRTHDAY trigger whose period contains the given time (for birthday grants).
+     */
+    Optional<RewardProgram> getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime at);
 }

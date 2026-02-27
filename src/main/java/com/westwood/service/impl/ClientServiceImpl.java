@@ -461,5 +461,16 @@ public class ClientServiceImpl implements ClientService {
             .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ClientBirthdayStatsDto getBirthdayStats() {
+        long withBirthdate = clientRepository.countClientsWithBirthdate();
+        long grantedThisYear = clientRepository.countClientsWithBirthdayAfter(LocalDate.now());
+        return ClientBirthdayStatsDto.builder()
+                .withBirthdate(withBirthdate)
+                .grantedThisYear(grantedThisYear)
+                .build();
+    }
+
 }
 

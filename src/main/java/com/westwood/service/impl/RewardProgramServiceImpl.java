@@ -311,6 +311,16 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             validateProgramReadyForLaunch(program);
         }
 
+        // ON_BIRTHDAY programs can only run as always-on
+        if (program.getWelcomeRule() != null && program.getWelcomeRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY) {
+            boolean effectiveImmediateForBirthday = request.isImmediate()
+                    && (request.getEndDate() == null || request.getEndDate().isBlank());
+            if (!effectiveImmediateForBirthday) {
+                throw new InvalidProgramStateException(
+                        "Birthday (on client's birthday) event programs can only be run as always-on. Launch immediately without an end date.");
+            }
+        }
+
         // "Launch now" from SCHEDULED: activate today and keep end date (periodic program that starts now)
         if (launchNowFromScheduled) {
             program.setStatus(RewardProgramStatus.ACTIVE);
@@ -403,6 +413,18 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithWelcomeRule(
                 RewardProgramType.WELCOME, List.of(RewardProgramStatus.ACTIVE));
         return candidates.stream()
+                .filter(p -> p.getStartDate() != null && !at.isBefore(p.getStartDate()))
+                .filter(p -> p.getEndDate() == null || !at.isAfter(p.getEndDate()))
+                .findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<RewardProgram> getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime at) {
+        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithWelcomeRule(
+                RewardProgramType.WELCOME, List.of(RewardProgramStatus.ACTIVE));
+        return candidates.stream()
+                .filter(p -> p.getWelcomeRule() != null && p.getWelcomeRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY)
                 .filter(p -> p.getStartDate() != null && !at.isBefore(p.getStartDate()))
                 .filter(p -> p.getEndDate() == null || !at.isAfter(p.getEndDate()))
                 .findFirst();

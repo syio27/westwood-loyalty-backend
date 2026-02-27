@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -61,5 +62,15 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
 
     @Query("SELECT COUNT(DISTINCT c.id) FROM Client c WHERE c.referrerId IS NOT NULL AND EXISTS (SELECT 1 FROM PaymentTransaction p WHERE p.client.id = c.id AND p.status = 'COMPLETED')")
     Long countReferredClientsWithPurchase();
+
+    /** Clients with date of birth set (for birthday program stats). */
+    @Query("SELECT COUNT(c) FROM Client c WHERE c.dateOfBirth IS NOT NULL")
+    Long countClientsWithBirthdate();
+
+    /** Clients whose birthday (month-day) in the current year falls after the given date (for "granted this year" count). */
+    @Query("SELECT COUNT(c) FROM Client c WHERE c.dateOfBirth IS NOT NULL AND (" +
+           "EXTRACT(MONTH FROM c.dateOfBirth) > EXTRACT(MONTH FROM :after) OR " +
+           "(EXTRACT(MONTH FROM c.dateOfBirth) = EXTRACT(MONTH FROM :after) AND EXTRACT(DAY FROM c.dateOfBirth) > EXTRACT(DAY FROM :after)))")
+    Long countClientsWithBirthdayAfter(@Param("after") LocalDate after);
 }
 

@@ -109,14 +109,6 @@ public class EventBonusServiceImpl implements EventBonusService {
     @Override
     public void checkAndGrantBirthdayBonus(UUID clientId) {
         try {
-            BonusType birthdayBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.BIRTHDAY)
-                    .orElse(null);
-
-            if (birthdayBonus == null) {
-                logger.debug("Birthday bonus is not enabled, skipping for client: {}", clientId);
-                return;
-            }
-
             Client client = clientRepository.findByUuid(clientId)
                     .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
 
@@ -145,6 +137,27 @@ public class EventBonusServiceImpl implements EventBonusService {
 
             if (alreadyGranted) {
                 logger.debug("Birthday bonus already granted this year for client: {}", clientId);
+                return;
+            }
+
+            // Prefer Event (WELCOME) program with ON_BIRTHDAY trigger
+            Optional<RewardProgram> birthdayProgram =
+                    rewardProgramService.getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime.now());
+            if (birthdayProgram.isPresent()) {
+                RewardProgram program = birthdayProgram.get();
+                WelcomeProgramRule rule = program.getWelcomeRule();
+                if (rule != null && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
+                    grantWelcomeFromRule(client, program, rule, null, null, "BIRTHDAY");
+                    logger.info("Birthday bonus (Event program) granted to client: {}", clientId);
+                    return;
+                }
+            }
+
+            // Legacy: bonus_types table
+            BonusType birthdayBonus = bonusTypeRepository.findByTypeAndEnabledTrue(BonusTypeEnum.BIRTHDAY)
+                    .orElse(null);
+            if (birthdayBonus == null) {
+                logger.debug("Birthday bonus is not enabled, skipping for client: {}", clientId);
                 return;
             }
 
@@ -276,13 +289,18 @@ public class EventBonusServiceImpl implements EventBonusService {
 
     private void grantWelcomeFromRule(Client client, RewardProgram program, WelcomeProgramRule rule,
                                       PaymentTransaction payment, BigDecimal paymentAmount) {
+        grantWelcomeFromRule(client, program, rule, payment, paymentAmount, "WELCOME");
+    }
+
+    private void grantWelcomeFromRule(Client client, RewardProgram program, WelcomeProgramRule rule,
+                                      PaymentTransaction payment, BigDecimal paymentAmount, String grantReason) {
         BonusGranted bonusGranted = new BonusGranted();
         bonusGranted.setClient(client);
         bonusGranted.setEventId(UUID.randomUUID());
         bonusGranted.setBonusAmount(rule.getGrantValue());
         bonusGranted.setBonusType(null);
         bonusGranted.setRewardProgram(program);
-        bonusGranted.setGrantReason("WELCOME");
+        bonusGranted.setGrantReason(grantReason != null ? grantReason : "WELCOME");
         if (rule.getBonusLifespanDays() != null && rule.getBonusLifespanDays() > 0) {
             bonusGranted.setExpiresAt(LocalDateTime.now().plusDays(rule.getBonusLifespanDays()));
         }

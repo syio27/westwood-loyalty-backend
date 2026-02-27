@@ -109,5 +109,11 @@ public class ClientController {
         List<FrequentClientDto> clients = clientService.getFrequentClients(Math.min(limit, 10));
         return ResponseEntity.ok(clients);
     }
+
+    @GetMapping("/birthday-stats")
+    @PreAuthorize("hasAnyRole('SUDO', 'ADMIN', 'MANAGER')")
+    public ResponseEntity<ClientBirthdayStatsDto> getBirthdayStats() {
+        return ResponseEntity.ok(clientService.getBirthdayStats());
+    }
 }
 
