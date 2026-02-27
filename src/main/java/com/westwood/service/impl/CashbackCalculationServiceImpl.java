@@ -288,7 +288,7 @@ public class CashbackCalculationServiceImpl implements CashbackCalculationServic
         dto.setCurrentTier(tierInfo);
         dto.setEffectiveRate(baseRate.add(tierExtra));
         dto.setClientTotalSpend(totalSpend);
-
+        dto.setPaymentInBonusProgramWindow(isWithinScheduleWindow(program));
         return dto;
     }
 

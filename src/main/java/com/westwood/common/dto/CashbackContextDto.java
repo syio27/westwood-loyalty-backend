@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,4 +26,6 @@ public class CashbackContextDto {
     private TierInfoDto currentTier;
     private BigDecimal effectiveRate;
     private BigDecimal clientTotalSpend;
+    @JsonProperty("isPaymentInBonusProgramWindow")
+    private boolean isPaymentInBonusProgramWindow;
 }
