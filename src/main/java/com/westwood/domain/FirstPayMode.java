@@ -1,7 +1,7 @@
 package com.westwood.domain;
 
 /**
- * When welcome is granted on first pay: grant only welcome bonus, or welcome alongside cashback.
+ * When event bonus is granted on first pay: grant only event bonus, or event alongside cashback.
  */
 public enum FirstPayMode {
     /** On first payment, grant welcome only; do not grant cashback for that payment. */

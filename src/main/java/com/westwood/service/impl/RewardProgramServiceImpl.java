@@ -11,8 +11,8 @@ import com.westwood.domain.*;
 import com.westwood.domain.Client;
 import com.westwood.domain.FirstPayMode;
 import com.westwood.domain.GrantTrigger;
-import com.westwood.domain.WelcomeGrantType;
-import com.westwood.domain.WelcomeProgramRule;
+import com.westwood.domain.EventGrantType;
+import com.westwood.domain.EventProgramRule;
 import com.westwood.repository.ClientRepository;
 import com.westwood.repository.PaymentTransactionRepository;
 import com.westwood.repository.RewardProgramRepository;
@@ -186,9 +186,9 @@ public class RewardProgramServiceImpl implements RewardProgramService {
     }
 
     @Override
-    public RewardProgramResponse saveWelcomeDraft(UUID uuid, SaveWelcomeProgramDraftRequest request) {
+    public RewardProgramResponse saveEventDraft(UUID uuid, SaveEventProgramDraftRequest request) {
         RewardProgram program = findDraftOrThrow(uuid);
-        assertWelcomeType(program);
+        assertEventType(program);
 
         if (request.getName() != null) {
             program.setName(request.getName());
@@ -201,7 +201,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         }
         program.setEndDate(request.getEndDate());
 
-        WelcomeProgramRule rule = ensureWelcomeRule(program);
+        EventProgramRule rule = ensureEventRule(program);
         if (request.getGrantType() != null) {
             rule.setGrantType(request.getGrantType());
         }
@@ -260,7 +260,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             if (alwaysOnCheck.isOverlaps() && Boolean.TRUE.equals(alwaysOnCheck.getAlwaysOnConflict())) {
                 throw new InvalidProgramStateException(
                         "Only one always-on program per type is allowed. An always-on "
-                                + (program.getType() == RewardProgramType.CASHBACK ? "cashback" : "welcome")
+                                + (program.getType() == RewardProgramType.CASHBACK ? "cashback" : "event")
                                 + " program already exists"
                                 + (alwaysOnCheck.getOverlappingProgramName() != null ? ": " + alwaysOnCheck.getOverlappingProgramName() : ".")
                                 + " Schedule a periodic program with start and end dates instead.");
@@ -294,9 +294,9 @@ public class RewardProgramServiceImpl implements RewardProgramService {
     }
 
     @Override
-    public RewardProgramResponse launchWelcomeProgram(UUID uuid, LaunchWelcomeProgramRequest request) {
+    public RewardProgramResponse launchEventProgram(UUID uuid, LaunchEventProgramRequest request) {
         RewardProgram program = findByUuidOrThrow(uuid);
-        assertWelcomeType(program);
+        assertEventType(program);
 
         boolean launchNowFromScheduled = program.getStatus() == RewardProgramStatus.SCHEDULED && request.isImmediate();
 
@@ -305,14 +305,14 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                     "Program can only be launched from DRAFT, or from SCHEDULED when launching now. Current: " + program.getStatus());
         }
 
-        applyWelcomeData(program, request);
+        applyEventData(program, request);
 
         if (!launchNowFromScheduled) {
             validateProgramReadyForLaunch(program);
         }
 
         // ON_BIRTHDAY programs can only run as always-on
-        if (program.getWelcomeRule() != null && program.getWelcomeRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY) {
+        if (program.getEventRule() != null && program.getEventRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY) {
             boolean effectiveImmediateForBirthday = request.isImmediate()
                     && (request.getEndDate() == null || request.getEndDate().isBlank());
             if (!effectiveImmediateForBirthday) {
@@ -338,7 +338,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                     program.getType(), LocalDateTime.now(), null, program.getUuid());
             if (alwaysOnCheck.isOverlaps() && Boolean.TRUE.equals(alwaysOnCheck.getAlwaysOnConflict())) {
                 throw new InvalidProgramStateException(
-                        "Only one always-on program per type is allowed. An always-on welcome program already exists"
+                        "Only one always-on program per type is allowed. An always-on event program already exists"
                                 + (alwaysOnCheck.getOverlappingProgramName() != null ? ": " + alwaysOnCheck.getOverlappingProgramName() : ".")
                                 + " Schedule a periodic program with start and end dates instead.");
             }
@@ -348,7 +348,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             if (program.getStartDate() == null) {
                 throw new InvalidProgramStateException("Start date must be set to schedule a program.");
             }
-            Instant startInstant = parseStartDateToInstantWelcome(request);
+            Instant startInstant = parseStartDateToInstantEvent(request);
             if (startInstant != null && startInstant.isBefore(Instant.now().minus(5, ChronoUnit.MINUTES))) {
                 throw new InvalidProgramStateException("Start date must be in the future for scheduled launch.");
             }
@@ -409,9 +409,9 @@ public class RewardProgramServiceImpl implements RewardProgramService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RewardProgram> getEffectiveActiveWelcomeProgram(LocalDateTime at) {
-        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithWelcomeRule(
-                RewardProgramType.WELCOME, List.of(RewardProgramStatus.ACTIVE));
+    public Optional<RewardProgram> getEffectiveActiveEventProgram(LocalDateTime at) {
+        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithEventRule(
+                RewardProgramType.EVENT, List.of(RewardProgramStatus.ACTIVE));
         return candidates.stream()
                 .filter(p -> p.getStartDate() != null && !at.isBefore(p.getStartDate()))
                 .filter(p -> p.getEndDate() == null || !at.isAfter(p.getEndDate()))
@@ -420,11 +420,11 @@ public class RewardProgramServiceImpl implements RewardProgramService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RewardProgram> getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime at) {
-        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithWelcomeRule(
-                RewardProgramType.WELCOME, List.of(RewardProgramStatus.ACTIVE));
+    public Optional<RewardProgram> getEffectiveActiveEventProgramForBirthday(LocalDateTime at) {
+        List<RewardProgram> candidates = rewardProgramRepository.findByTypeAndStatusInWithEventRule(
+                RewardProgramType.EVENT, List.of(RewardProgramStatus.ACTIVE));
         return candidates.stream()
-                .filter(p -> p.getWelcomeRule() != null && p.getWelcomeRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY)
+                .filter(p -> p.getEventRule() != null && p.getEventRule().getGrantTrigger() == GrantTrigger.ON_BIRTHDAY)
                 .filter(p -> p.getStartDate() != null && !at.isBefore(p.getStartDate()))
                 .filter(p -> p.getEndDate() == null || !at.isAfter(p.getEndDate()))
                 .findFirst();
@@ -502,26 +502,26 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         }
     }
 
-    private void assertWelcomeType(RewardProgram program) {
-        if (program.getType() != RewardProgramType.WELCOME) {
+    private void assertEventType(RewardProgram program) {
+        if (program.getType() != RewardProgramType.EVENT) {
             throw new IllegalArgumentException(
-                    "This operation is only valid for WELCOME programs. Type: " + program.getType());
+                    "This operation is only valid for EVENT programs. Type: " + program.getType());
         }
     }
 
-    private WelcomeProgramRule ensureWelcomeRule(RewardProgram program) {
-        if (program.getWelcomeRule() == null) {
-            WelcomeProgramRule rule = new WelcomeProgramRule();
+    private EventProgramRule ensureEventRule(RewardProgram program) {
+        if (program.getEventRule() == null) {
+            EventProgramRule rule = new EventProgramRule();
             rule.setProgram(program);
-            rule.setGrantType(WelcomeGrantType.POINTS);
+            rule.setGrantType(EventGrantType.POINTS);
             rule.setGrantValue(BigDecimal.ZERO);
             rule.setGrantTrigger(GrantTrigger.ON_JOIN);
-            program.setWelcomeRule(rule);
+            program.setEventRule(rule);
         }
-        return program.getWelcomeRule();
+        return program.getEventRule();
     }
 
-    private Instant parseStartDateToInstantWelcome(LaunchWelcomeProgramRequest request) {
+    private Instant parseStartDateToInstantEvent(LaunchEventProgramRequest request) {
         String s = request.getStartDate();
         if (s == null || s.isBlank()) return null;
         try {
@@ -536,7 +536,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
         }
     }
 
-    private void applyWelcomeData(RewardProgram program, LaunchWelcomeProgramRequest request) {
+    private void applyEventData(RewardProgram program, LaunchEventProgramRequest request) {
         if (request.getName() != null) {
             program.setName(request.getName());
         }
@@ -552,7 +552,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             program.setEndDate(null);
         }
 
-        WelcomeProgramRule rule = ensureWelcomeRule(program);
+        EventProgramRule rule = ensureEventRule(program);
         if (request.getGrantType() != null) {
             rule.setGrantType(request.getGrantType());
         }
@@ -725,10 +725,10 @@ public class RewardProgramServiceImpl implements RewardProgramService {
             }
         }
 
-        if (program.getType() == RewardProgramType.WELCOME) {
-            WelcomeProgramRule rule = program.getWelcomeRule();
+        if (program.getType() == RewardProgramType.EVENT) {
+            EventProgramRule rule = program.getEventRule();
             if (rule == null) {
-                errors.add("Welcome rules must be configured");
+                errors.add("Event program rules must be configured");
             } else {
                 if (rule.getGrantType() == null) {
                     errors.add("Grant type is required");
@@ -948,7 +948,7 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .weeklySchedules(mapSchedules(program.getWeeklySchedules()))
                 .cashbackRule(mapCashbackRule(program.getCashbackRule()))
                 .cashbackTiers(mapCashbackTiers(program.getCashbackTiers()))
-                .welcomeRule(mapWelcomeRule(program.getWelcomeRule()))
+                .eventRule(mapEventRule(program.getEventRule()))
                 .createdAt(program.getCreatedAt())
                 .updatedAt(program.getUpdatedAt())
                 .alwaysOnProgramName(alwaysOnName)
@@ -977,10 +977,10 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                     .minSpendAmount(rule.getMinSpendAmount())
                     .pointsSpendThreshold(rule.getPointsSpendThreshold());
         }
-        if (program.getType() == RewardProgramType.WELCOME && program.getWelcomeRule() != null) {
-            var rule = program.getWelcomeRule();
-            b.welcomeGrantType(rule.getGrantType())
-                    .welcomeGrantValue(rule.getGrantValue());
+        if (program.getType() == RewardProgramType.EVENT && program.getEventRule() != null) {
+            var rule = program.getEventRule();
+            b.eventGrantType(rule.getGrantType())
+                    .eventGrantValue(rule.getGrantValue());
         }
         return b.build();
     }
@@ -1036,11 +1036,11 @@ public class RewardProgramServiceImpl implements RewardProgramService {
                 .build();
     }
 
-    private WelcomeProgramRuleResponse mapWelcomeRule(WelcomeProgramRule rule) {
+    private EventProgramRuleResponse mapEventRule(EventProgramRule rule) {
         if (rule == null) {
             return null;
         }
-        return WelcomeProgramRuleResponse.builder()
+        return EventProgramRuleResponse.builder()
                 .grantType(rule.getGrantType())
                 .grantValue(rule.getGrantValue())
                 .bonusLifespanDays(rule.getBonusLifespanDays())

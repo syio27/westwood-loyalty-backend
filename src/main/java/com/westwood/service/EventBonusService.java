@@ -5,7 +5,8 @@ import java.util.UUID;
 
 public interface EventBonusService {
 
-    void checkAndGrantWelcomeBonus(UUID clientId);
+    /** Grant event-program bonus on client join (if program is active and trigger is ON_JOIN). */
+    void checkAndGrantEventBonus(UUID clientId);
 
     void checkAndGrantBirthdayBonus(UUID clientId);
 

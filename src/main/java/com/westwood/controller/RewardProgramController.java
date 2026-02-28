@@ -94,12 +94,12 @@ public class RewardProgramController {
         return ResponseEntity.ok(rewardProgramService.saveCashbackDraft(uuid, request));
     }
 
-    @PutMapping("/{uuid}/welcome")
+    @PutMapping("/{uuid}/event")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
-    public ResponseEntity<RewardProgramResponse> saveWelcomeDraft(
+    public ResponseEntity<RewardProgramResponse> saveEventDraft(
             @PathVariable UUID uuid,
-            @Valid @RequestBody SaveWelcomeProgramDraftRequest request) {
-        return ResponseEntity.ok(rewardProgramService.saveWelcomeDraft(uuid, request));
+            @Valid @RequestBody SaveEventProgramDraftRequest request) {
+        return ResponseEntity.ok(rewardProgramService.saveEventDraft(uuid, request));
     }
 
     // ─── Lifecycle ───────────────────────────────────────────────────
@@ -112,12 +112,12 @@ public class RewardProgramController {
         return ResponseEntity.ok(rewardProgramService.launchCashbackProgram(uuid, request));
     }
 
-    @PostMapping("/{uuid}/launch-welcome")
+    @PostMapping("/{uuid}/launch-event")
     @PreAuthorize("hasAnyRole('SUDO', 'ADMIN')")
-    public ResponseEntity<RewardProgramResponse> launchWelcomeProgram(
+    public ResponseEntity<RewardProgramResponse> launchEventProgram(
             @PathVariable UUID uuid,
-            @Valid @RequestBody LaunchWelcomeProgramRequest request) {
-        return ResponseEntity.ok(rewardProgramService.launchWelcomeProgram(uuid, request));
+            @Valid @RequestBody LaunchEventProgramRequest request) {
+        return ResponseEntity.ok(rewardProgramService.launchEventProgram(uuid, request));
     }
 
     @PostMapping("/{uuid}/deactivate")

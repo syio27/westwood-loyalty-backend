@@ -1,8 +1,8 @@
 package com.westwood.common.dto.reward;
 
+import com.westwood.domain.EventGrantType;
 import com.westwood.domain.FirstPayMode;
 import com.westwood.domain.GrantTrigger;
-import com.westwood.domain.WelcomeGrantType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,9 +14,9 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WelcomeProgramRuleResponse {
+public class EventProgramRuleResponse {
 
-    private WelcomeGrantType grantType;
+    private EventGrantType grantType;
     private BigDecimal grantValue;
     private Integer bonusLifespanDays;
     private GrantTrigger grantTrigger;

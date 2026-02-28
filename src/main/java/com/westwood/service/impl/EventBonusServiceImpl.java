@@ -9,7 +9,7 @@ import com.westwood.domain.PaymentTransaction;
 import com.westwood.domain.FirstPayMode;
 import com.westwood.domain.GrantTrigger;
 import com.westwood.domain.RewardProgram;
-import com.westwood.domain.WelcomeProgramRule;
+import com.westwood.domain.EventProgramRule;
 import com.westwood.repository.BonusEventRepository;
 import com.westwood.repository.BonusTypeRepository;
 import com.westwood.repository.ClientRepository;
@@ -58,7 +58,7 @@ public class EventBonusServiceImpl implements EventBonusService {
     }
 
     @Override
-    public void checkAndGrantWelcomeBonus(UUID clientId) {
+    public void checkAndGrantEventBonus(UUID clientId) {
         try {
             Client client = clientRepository.findByUuid(clientId)
                     .orElseThrow(() -> new ResourceNotFoundException("Client with id '" + clientId + "' not found"));
@@ -67,23 +67,23 @@ public class EventBonusServiceImpl implements EventBonusService {
                     .stream()
                     .anyMatch(event -> event instanceof BonusGranted &&
                             ((BonusGranted) event).getGrantReason() != null &&
-                            ((BonusGranted) event).getGrantReason().equals("WELCOME"));
+                            ("WELCOME".equals(((BonusGranted) event).getGrantReason()) || "EVENT".equals(((BonusGranted) event).getGrantReason())));
 
             if (alreadyGranted) {
-                logger.debug("Welcome bonus already granted for client: {}", clientId);
+                logger.debug("Event (join) bonus already granted for client: {}", clientId);
                 return;
             }
 
-            // Prefer welcome reward program (grant on client joining)
-            Optional<RewardProgram> welcomeProgram =
-                    rewardProgramService.getEffectiveActiveWelcomeProgram(LocalDateTime.now());
-            if (welcomeProgram.isPresent()) {
-                RewardProgram program = welcomeProgram.get();
-                WelcomeProgramRule rule = program.getWelcomeRule();
+            // Prefer event program (grant on client joining)
+            Optional<RewardProgram> eventProgram =
+                    rewardProgramService.getEffectiveActiveEventProgram(LocalDateTime.now());
+            if (eventProgram.isPresent()) {
+                RewardProgram program = eventProgram.get();
+                EventProgramRule rule = program.getEventRule();
                 if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_JOIN
                         && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
-                    grantWelcomeFromRule(client, program, rule, null, null);
-                    logger.info("Welcome bonus (program) granted to client: {}", clientId);
+                    grantEventFromRule(client, program, rule, null, null, "EVENT");
+                    logger.info("Event bonus (program, on join) granted to client: {}", clientId);
                     return;
                 }
             }
@@ -102,7 +102,7 @@ public class EventBonusServiceImpl implements EventBonusService {
             grantBonus(client, welcomeBonus, null, null, "WELCOME", welcomeBonus.getBonusAmount());
             logger.info("Welcome bonus (legacy) granted to client: {}", clientId);
         } catch (Exception e) {
-            logger.error("Error granting welcome bonus to client: {} (non-fatal)", clientId, e);
+            logger.error("Error granting event bonus to client: {} (non-fatal)", clientId, e);
         }
     }
 
@@ -140,14 +140,14 @@ public class EventBonusServiceImpl implements EventBonusService {
                 return;
             }
 
-            // Prefer Event (WELCOME) program with ON_BIRTHDAY trigger
+            // Prefer event program with ON_BIRTHDAY trigger
             Optional<RewardProgram> birthdayProgram =
-                    rewardProgramService.getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime.now());
+                    rewardProgramService.getEffectiveActiveEventProgramForBirthday(LocalDateTime.now());
             if (birthdayProgram.isPresent()) {
                 RewardProgram program = birthdayProgram.get();
-                WelcomeProgramRule rule = program.getWelcomeRule();
+                EventProgramRule rule = program.getEventRule();
                 if (rule != null && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
-                    grantWelcomeFromRule(client, program, rule, null, null, "BIRTHDAY");
+                    grantEventFromRule(client, program, rule, null, null, "BIRTHDAY");
                     logger.info("Birthday bonus (Event program) granted to client: {}", clientId);
                     return;
                 }
@@ -266,15 +266,15 @@ public class EventBonusServiceImpl implements EventBonusService {
         boolean isFirstPayment = (completedCount == 1);
 
         if (isFirstPayment) {
-            Optional<RewardProgram> welcomeOpt =
-                    rewardProgramService.getEffectiveActiveWelcomeProgram(LocalDateTime.now());
-            if (welcomeOpt.isPresent()) {
-                RewardProgram program = welcomeOpt.get();
-                WelcomeProgramRule rule = program.getWelcomeRule();
+            Optional<RewardProgram> eventOpt =
+                    rewardProgramService.getEffectiveActiveEventProgram(LocalDateTime.now());
+            if (eventOpt.isPresent()) {
+                RewardProgram program = eventOpt.get();
+                EventProgramRule rule = program.getEventRule();
                 if (rule != null && rule.getGrantTrigger() == GrantTrigger.ON_FIRST_PAY
                         && rule.getGrantValue() != null && rule.getGrantValue().compareTo(BigDecimal.ZERO) > 0) {
                     PaymentTransaction payment = paymentRepository.findByTxId(paymentTxId).orElse(null);
-                    grantWelcomeFromRule(client, program, rule, payment, paymentAmount);
+                    grantEventFromRule(client, program, rule, payment, paymentAmount, "EVENT");
                     if (rule.getFirstPayMode() == FirstPayMode.WELCOME_ONLY) {
                         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
                         return;
@@ -287,20 +287,20 @@ public class EventBonusServiceImpl implements EventBonusService {
         checkAndGrantMilestoneBonus(clientId, paymentTxId, paymentAmount);
     }
 
-    private void grantWelcomeFromRule(Client client, RewardProgram program, WelcomeProgramRule rule,
-                                      PaymentTransaction payment, BigDecimal paymentAmount) {
-        grantWelcomeFromRule(client, program, rule, payment, paymentAmount, "WELCOME");
+    private void grantEventFromRule(Client client, RewardProgram program, EventProgramRule rule,
+                                    PaymentTransaction payment, BigDecimal paymentAmount) {
+        grantEventFromRule(client, program, rule, payment, paymentAmount, "EVENT");
     }
 
-    private void grantWelcomeFromRule(Client client, RewardProgram program, WelcomeProgramRule rule,
-                                      PaymentTransaction payment, BigDecimal paymentAmount, String grantReason) {
+    private void grantEventFromRule(Client client, RewardProgram program, EventProgramRule rule,
+                                    PaymentTransaction payment, BigDecimal paymentAmount, String grantReason) {
         BonusGranted bonusGranted = new BonusGranted();
         bonusGranted.setClient(client);
         bonusGranted.setEventId(UUID.randomUUID());
         bonusGranted.setBonusAmount(rule.getGrantValue());
         bonusGranted.setBonusType(null);
         bonusGranted.setRewardProgram(program);
-        bonusGranted.setGrantReason(grantReason != null ? grantReason : "WELCOME");
+        bonusGranted.setGrantReason(grantReason != null ? grantReason : "EVENT");
         if (rule.getBonusLifespanDays() != null && rule.getBonusLifespanDays() > 0) {
             bonusGranted.setExpiresAt(LocalDateTime.now().plusDays(rule.getBonusLifespanDays()));
         }

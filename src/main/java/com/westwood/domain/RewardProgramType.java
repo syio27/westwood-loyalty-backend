@@ -2,10 +2,11 @@ package com.westwood.domain;
 
 /**
  * Fixed reward program types, one per segment slot.
- * Segment mapping: ACQUISITION_AND_EVENTS = WELCOME, BIRTHDAY; GROWTH = REFERRAL; EVERYDAY = CASHBACK.
+ * EVENT = Event program: grants on events (join, first pay, birthday, etc.). Extensible with new grant triggers.
+ * Segment mapping: ACQUISITION_AND_EVENTS = EVENT, BIRTHDAY; GROWTH = REFERRAL; EVERYDAY = CASHBACK.
  */
 public enum RewardProgramType {
-    WELCOME,
+    EVENT,
     BIRTHDAY,
     REFERRAL,
     CASHBACK

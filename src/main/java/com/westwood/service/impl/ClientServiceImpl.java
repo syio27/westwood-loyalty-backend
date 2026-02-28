@@ -116,8 +116,8 @@ public class ClientServiceImpl implements ClientService {
 
         Client savedClient = clientRepository.save(client);
 
-        // Grant welcome bonus
-        eventBonusService.checkAndGrantWelcomeBonus(savedClient.getUuid());
+        // Grant event bonus (on join, if event program is active)
+        eventBonusService.checkAndGrantEventBonus(savedClient.getUuid());
 
         // Grant referral bonuses if applicable
         if (savedClient.getReferrerId() != null) {

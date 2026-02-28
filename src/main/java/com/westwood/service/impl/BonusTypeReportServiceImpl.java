@@ -107,7 +107,7 @@ public class BonusTypeReportServiceImpl implements BonusTypeReportService {
         List<BonusTypeReportDto.MonthlyReportPointDto> monthlyData = buildMonthlyDataByRewardProgram(rewardProgramId, from, to);
 
         BigDecimal retentionRatePercent = BigDecimal.ZERO;
-        if (program.getType() == RewardProgramType.WELCOME || program.getType() == RewardProgramType.BIRTHDAY) {
+        if (program.getType() == RewardProgramType.EVENT || program.getType() == RewardProgramType.BIRTHDAY) {
             Long grantedClients = bonusEventRepository.countDistinctClientsGrantedByRewardProgramIdInPeriod(rewardProgramId, from, to);
             Long consumedClients = bonusConsumptionRepository.countDistinctClientsConsumedByRewardProgramIdInPeriod(rewardProgramId, from, to);
             retentionRatePercent = grantedClients == null || grantedClients == 0

@@ -17,7 +17,7 @@ import java.util.UUID;
 public interface RewardProgramService {
 
     /**
-     * Returns one slot per reward program type (WELCOME, BIRTHDAY, REFERRAL, CASHBACK).
+     * Returns one slot per reward program type (EVENT, BIRTHDAY, REFERRAL, CASHBACK).
      * Status NOT_CREATED if no row exists, otherwise DRAFT / SCHEDULED / ACTIVE / etc.
      */
     List<RewardProgramSlotDto> getSlots();
@@ -48,10 +48,10 @@ public interface RewardProgramService {
     RewardProgramResponse saveCashbackDraft(UUID uuid, SaveCashbackProgramDraftRequest request);
 
     /**
-     * Save/update welcome program draft. Schedule is start/end date only (no weekly).
-     * Only allowed when program is in DRAFT status and type is WELCOME.
+     * Save/update event program draft. Schedule is start/end date only (no weekly).
+     * Only allowed when program is in DRAFT status and type is EVENT.
      */
-    RewardProgramResponse saveWelcomeDraft(UUID uuid, SaveWelcomeProgramDraftRequest request);
+    RewardProgramResponse saveEventDraft(UUID uuid, SaveEventProgramDraftRequest request);
 
     // --- Lifecycle ---
 
@@ -63,10 +63,10 @@ public interface RewardProgramService {
     RewardProgramResponse launchCashbackProgram(UUID uuid, LaunchCashbackProgramRequest request);
 
     /**
-     * Launch a welcome program immediately or schedule it.
+     * Launch an event program immediately or schedule it.
      * Schedule: start/end only (no weekly). DRAFT -> ACTIVE or DRAFT -> SCHEDULED.
      */
-    RewardProgramResponse launchWelcomeProgram(UUID uuid, LaunchWelcomeProgramRequest request);
+    RewardProgramResponse launchEventProgram(UUID uuid, LaunchEventProgramRequest request);
 
     /**
      * ACTIVE -> INACTIVE (manually deactivate a running program).
@@ -100,12 +100,12 @@ public interface RewardProgramService {
                                                         LocalDateTime start, LocalDateTime end, UUID excludeUuid);
 
     /**
-     * Returns the active welcome program whose period contains the given time (for grant-on-join and grant-on-first-pay).
+     * Returns the active event program whose period contains the given time (for grant-on-join and grant-on-first-pay).
      */
-    Optional<RewardProgram> getEffectiveActiveWelcomeProgram(LocalDateTime at);
+    Optional<RewardProgram> getEffectiveActiveEventProgram(LocalDateTime at);
 
     /**
-     * Returns the active welcome program with ON_BIRTHDAY trigger whose period contains the given time (for birthday grants).
+     * Returns the active event program with ON_BIRTHDAY trigger whose period contains the given time (for birthday grants).
      */
-    Optional<RewardProgram> getEffectiveActiveWelcomeProgramForBirthday(LocalDateTime at);
+    Optional<RewardProgram> getEffectiveActiveEventProgramForBirthday(LocalDateTime at);
 }

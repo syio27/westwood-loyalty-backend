@@ -1,17 +1,17 @@
 package com.westwood.common.dto.reward;
 
+import com.westwood.domain.EventGrantType;
 import com.westwood.domain.FirstPayMode;
 import com.westwood.domain.GrantTrigger;
-import com.westwood.domain.WelcomeGrantType;
 import lombok.Data;
 
 import java.math.BigDecimal;
 
 /**
- * Launch welcome program. Optional program data applied before launch if provided.
+ * Launch event program. Optional program data applied before launch if provided.
  */
 @Data
-public class LaunchWelcomeProgramRequest {
+public class LaunchEventProgramRequest {
 
     /** If true, launch as always-on (no end date). If false, schedule with start/end dates. Default false so periodic is safe when field is omitted. */
     private boolean immediate = false;
@@ -19,7 +19,7 @@ public class LaunchWelcomeProgramRequest {
     private String name;
     private String description;
 
-    private WelcomeGrantType grantType;
+    private EventGrantType grantType;
     private BigDecimal grantValue;
     private Integer bonusLifespanDays;
     private GrantTrigger grantTrigger;

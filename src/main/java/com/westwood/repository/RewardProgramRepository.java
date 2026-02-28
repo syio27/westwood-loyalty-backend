@@ -16,8 +16,8 @@ import java.util.UUID;
 @Repository
 public interface RewardProgramRepository extends JpaRepository<RewardProgram, Long> {
 
-    /** Load programs with cashback and welcome rules for list API (bonus type column). */
-    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.cashbackRule LEFT JOIN FETCH rp.welcomeRule")
+    /** Load programs with cashback and event rules for list API (bonus type column). */
+    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.cashbackRule LEFT JOIN FETCH rp.eventRule")
     List<RewardProgram> findAllWithRules();
 
     Optional<RewardProgram> findByUuid(UUID uuid);
@@ -54,9 +54,9 @@ public interface RewardProgramRepository extends JpaRepository<RewardProgram, Lo
             @Param("type") RewardProgramType type,
             @Param("statuses") List<RewardProgramStatus> statuses);
 
-    /** Load active/scheduled welcome programs with rule (for grant-on-join and grant-on-first-pay). */
-    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.welcomeRule WHERE rp.type = :type AND rp.status IN :statuses")
-    List<RewardProgram> findByTypeAndStatusInWithWelcomeRule(
+    /** Load active/scheduled event programs with rule (for grant-on-join, first-pay, birthday). */
+    @Query("SELECT DISTINCT rp FROM RewardProgram rp LEFT JOIN FETCH rp.eventRule WHERE rp.type = :type AND rp.status IN :statuses")
+    List<RewardProgram> findByTypeAndStatusInWithEventRule(
             @Param("type") RewardProgramType type,
             @Param("statuses") List<RewardProgramStatus> statuses);
 }

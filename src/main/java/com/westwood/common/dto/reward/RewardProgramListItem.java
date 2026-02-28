@@ -3,7 +3,7 @@ package com.westwood.common.dto.reward;
 import com.westwood.domain.CashbackType;
 import com.westwood.domain.RewardProgramStatus;
 import com.westwood.domain.RewardProgramType;
-import com.westwood.domain.WelcomeGrantType;
+import com.westwood.domain.EventGrantType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,10 +38,10 @@ public class RewardProgramListItem {
     /** Only for BONUS_POINTS: points earned per this spend amount */
     private BigDecimal pointsSpendThreshold;
 
-    /** Only for type WELCOME: POINTS or FIXED_MONEY_KZT */
-    private WelcomeGrantType welcomeGrantType;
-    /** Only for type WELCOME: grant value (points or KZT amount) */
-    private BigDecimal welcomeGrantValue;
+    /** Only for type EVENT: POINTS or FIXED_MONEY_KZT */
+    private EventGrantType eventGrantType;
+    /** Only for type EVENT: grant value (points or KZT amount) */
+    private BigDecimal eventGrantValue;
 
     /** When this program has an end date and an always-on program of the same type exists: that program's name (for UI tooltip). */
     private String alwaysOnProgramName;

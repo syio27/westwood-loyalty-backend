@@ -9,11 +9,11 @@ import lombok.ToString;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "welcome_program_rules")
+@Table(name = "event_program_rules")
 @Getter
 @Setter
 @ToString(exclude = "program")
-public class WelcomeProgramRule extends BaseEntity {
+public class EventProgramRule extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "program_id", nullable = false, unique = true)
@@ -22,7 +22,7 @@ public class WelcomeProgramRule extends BaseEntity {
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "grant_type", nullable = false, length = 20)
-    private WelcomeGrantType grantType;
+    private EventGrantType grantType;
 
     @NotNull
     @Column(name = "grant_value", nullable = false, precision = 19, scale = 2)

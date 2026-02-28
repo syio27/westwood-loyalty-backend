@@ -36,7 +36,7 @@ public class RewardProgramResponse {
 
     private List<CashbackTierResponse> cashbackTiers;
 
-    private WelcomeProgramRuleResponse welcomeRule;
+    private EventProgramRuleResponse eventRule;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
